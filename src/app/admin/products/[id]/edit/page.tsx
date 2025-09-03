@@ -1,3 +1,4 @@
+// src/app/admin/products/[id]/edit/page.tsx
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import EditProductForm from "@/components/admin/edit-product-form";

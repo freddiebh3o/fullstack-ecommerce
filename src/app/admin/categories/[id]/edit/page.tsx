@@ -1,3 +1,4 @@
+// src/app/admin/categories/[id]/edit/page.tsx
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import EditCategoryForm from "@/components/admin/edit-category-form";

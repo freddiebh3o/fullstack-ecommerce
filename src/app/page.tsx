@@ -1,9 +1,13 @@
+// src/app/page.tsx
 import { db } from '@/lib/db';
 import Image from 'next/image';
 
 export default async function HomePage() {
   const products = await db.product.findMany({
-    include: { images: { orderBy: { sortOrder: 'asc' } }, category: true },
+    include: { 
+      images: { orderBy: { sortOrder: 'asc' } }, 
+      category: true 
+    },
     orderBy: { createdAt: 'desc' },
   });
 

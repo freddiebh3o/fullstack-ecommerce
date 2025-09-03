@@ -1,3 +1,4 @@
+// src/app/403/page.tsx
 export default function ForbiddenPage() {
     return (
       <main className="p-10 text-center">

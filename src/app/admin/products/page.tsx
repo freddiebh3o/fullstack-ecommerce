@@ -1,3 +1,4 @@
+// src/app/admin/products/page.tsx
 import Link from "next/link";
 import { db } from "@/lib/db";
 import ProductTable from "@/components/admin/product-table";

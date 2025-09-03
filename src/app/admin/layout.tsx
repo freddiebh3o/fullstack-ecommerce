@@ -1,3 +1,4 @@
+// src/app/admin/layout.tsx
 import { ReactNode } from "react";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
