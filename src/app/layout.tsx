@@ -24,7 +24,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className="light"                 // match next-themes default
+      style={{ colorScheme: "light" }}  // match next-themes default
+      suppressHydrationWarning          // avoid warnings when client flips class
+    >
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

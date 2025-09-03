@@ -12,10 +12,7 @@ const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
 });
 
 function formatPrice(amount: number, currency = "GBP") {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency",
-    currency,
-  }).format(amount);
+  return new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(amount);
 }
 
 type ProductRow = {
@@ -52,10 +49,10 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-left">
-          <tr>
+          <tr className="text-foreground">
             <th className="px-4 py-3">Name</th>
             <th className="px-4 py-3">Category</th>
             <th className="px-4 py-3">Price</th>
@@ -72,24 +69,17 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
                 <div className="text-muted-foreground">{p.slug}</div>
               </td>
               <td className="px-4 py-3">{p.category?.name ?? "—"}</td>
-              <td className="px-4 py-3">
-                {formatPrice(p.priceCents / 100, p.currency || "GBP")}
-              </td>
+              <td className="px-4 py-3">{formatPrice(p.priceCents / 100, p.currency || "GBP")}</td>
               <td className="px-4 py-3">{p.stock ?? 0}</td>
-              <td className="px-4 py-3">
-                {DATE_FMT.format(new Date(p.createdAt))}
-              </td>
+              <td className="px-4 py-3">{DATE_FMT.format(new Date(p.createdAt))}</td>
               <td className="px-4 py-3 text-right">
-                <a
-                  href={`/admin/products/${p.id}/edit`}
-                  className="mr-2 underline hover:no-underline"
-                >
+                <a href={`/admin/products/${p.id}/edit`} className="mr-2 underline hover:no-underline">
                   Edit
                 </a>
                 <button
                   onClick={() => handleDelete(p.id, p.name)}
                   disabled={busyId === p.id || isPending}
-                  className="text-red-600 underline hover:no-underline disabled:opacity-50"
+                  className="text-destructive underline hover:no-underline disabled:opacity-50"
                 >
                   {busyId === p.id ? "Deleting..." : "Delete"}
                 </button>

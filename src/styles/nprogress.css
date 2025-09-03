@@ -1,0 +1,15 @@
+/* Uses your admin tokens */
+#nprogress .bar {
+    background: oklch(var(--primary)) !important;
+    height: 3px !important;
+  }
+  #nprogress .peg {
+    box-shadow:
+      0 0 10px oklch(var(--primary)),
+      0 0 5px oklch(var(--primary)) !important;
+  }
+  #nprogress .spinner-icon {
+    border-top-color: oklch(var(--primary)) !important;
+    border-left-color: oklch(var(--primary)) !important;
+  }
+  

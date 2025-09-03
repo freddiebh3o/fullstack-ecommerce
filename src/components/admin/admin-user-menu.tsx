@@ -1,4 +1,4 @@
-// components/admin/admin-user-menu.tsx
+// src/components/admin/admin-user-menu.tsx
 "use client";
 
 import { signOut } from "next-auth/react";
@@ -10,7 +10,12 @@ export default function AdminUserMenu({ email }: { email?: string }) {
       {email ? (
         <span className="hidden sm:inline text-sm text-muted-foreground">{email}</span>
       ) : null}
-      <Button size="sm" variant="outline" onClick={() => signOut({ callbackUrl: "/" })}>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => signOut({ callbackUrl: "/" })}
+        className="rounded-md"
+      >
         Sign out
       </Button>
     </div>

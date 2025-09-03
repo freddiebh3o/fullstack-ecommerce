@@ -1,4 +1,4 @@
-// src/components/admin/edit-product-form.tsx
+// src/components/admin/new-product-form.tsx
 "use client";
 
 import { z } from "zod";
@@ -8,16 +8,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormControl,
-  FormMessage,
-} from "@/components/ui/form";
-import { Category } from "@prisma/client";
-import CategorySelect from "./category-select";
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import CategorySelect from "@/components/admin/category-select";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -30,20 +22,24 @@ const schema = z.object({
 });
 type FormValues = z.input<typeof schema>;
 
-export default function EditProductForm({ id, initial, categories }: { id: string; initial: FormValues; categories: Category[] }) {
+function slugify(s: string) {
+  return s.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
+}
+
+export default function NewProductForm({ categories }: { categories: { name: string; slug: string }[] }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: initial,
+    defaultValues: { currency: "GBP" },
     mode: "onBlur",
   });
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch(`/api/admin/products/${id}`, {
-      method: "PATCH",
+    const res = await fetch("/api/admin/products", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
     });
@@ -51,7 +47,7 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
 
     if (!res.ok) {
       const msg = await res.text();
-      alert(`Save failed: ${msg}`);
+      alert(`Error: ${msg}`);
       return;
     }
     router.push("/admin/products");
@@ -67,7 +63,18 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
-              <FormControl><Input className="bg-background" {...field} /></FormControl>
+              <FormControl>
+                <Input
+                  {...field}
+                  onBlur={(e) => {
+                    field.onBlur();
+                    const v = e.currentTarget.value;
+                    if (!form.getValues("slug") && v) {
+                      form.setValue("slug", slugify(v), { shouldValidate: true });
+                    }
+                  }}
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -79,7 +86,7 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Slug</FormLabel>
-              <FormControl><Input className="bg-background" {...field} /></FormControl>
+              <FormControl><Input placeholder="example-product" {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -93,7 +100,6 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
               <FormLabel>Price (in pence)</FormLabel>
               <FormControl>
                 <Input
-                  className="bg-background"
                   type="number"
                   inputMode="numeric"
                   {...field}
@@ -111,7 +117,7 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Currency</FormLabel>
-              <FormControl><Input className="bg-background" {...field} /></FormControl>
+              <FormControl><Input {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -123,7 +129,7 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Description</FormLabel>
-              <FormControl><Input className="bg-background" {...field} /></FormControl>
+              <FormControl><Input {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -135,7 +141,7 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Primary Image URL</FormLabel>
-              <FormControl><Input className="bg-background" placeholder="https://..." {...field} /></FormControl>
+              <FormControl><Input placeholder="https://..." {...field} /></FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -156,15 +162,8 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
         />
 
         <div className="flex gap-2">
-          <Button type="submit" disabled={saving} className="rounded-md">
-            {saving ? "Saving..." : "Save changes"}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/admin/products")}
-            className="rounded-md"
-          >
+          <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Create"}</Button>
+          <Button type="button" variant="outline" onClick={() => router.push("/admin/products")}>
             Cancel
           </Button>
         </div>

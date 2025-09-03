@@ -9,13 +9,18 @@ export default async function EditProductPage({
 }) {
   const { id } = await params;
 
-  const product = await db.product.findUnique({
-    where: { id },
-    include: {
-      category: true,
-      images: { orderBy: { sortOrder: "asc" } },
-    },
-  });
+  const [product, categories] = await Promise.all([
+    db.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        images: { orderBy: { sortOrder: "asc" } },
+      },
+    }),
+    db.category.findMany({
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   if (!product) notFound();
 
@@ -24,6 +29,7 @@ export default async function EditProductPage({
       <h1 className="text-2xl font-semibold">Edit Product</h1>
       <EditProductForm
         id={product.id}
+        categories={categories}
         initial={{
           name: product.name,
           slug: product.slug,
