@@ -64,8 +64,13 @@ npx prisma studio
 
 ### Project Structure
 ```
+prisma/
+  schema.prisma
+  seed.ts
 src/
   app/
+    403/
+      page.tsx
     admin/
       layout.tsx
       page.tsx
@@ -75,32 +80,67 @@ src/
         new/page.tsx      # create
         [id]/
           edit/page.tsx   # edit
+      categories/
+        page.tsx          # list
+        new/page.tsx      # create
+        [id]/
+          edit/page.tsz   # edit
     api/
       auth/[...nextauth]/route.ts
       admin/
         products/
           route.ts        # POST create
           [id]/route.ts   # PATCH update, DELETE
+        categories/
+          route.ts        # POST create
+          [id]/route.ts   # PATCH update, DELETE
     page.tsx
     layout.tsx
+    globals.css
+    favicon.ico
   components/
     admin/
       admin-sidebar.tsx
       admin-user-menu.tsx
-      product-table.tsx
+      category-select.tsx
+      category-table.tsx
+      edit-category-form.tsx
       edit-product-form.tsx
+      new-product-form.tsx
+      product-table.tsx
+    theme/
+      admin-theme-provider.tsx
+      theme-toggle.tsx
     ui/
-      spinner.tsx
-      form.tsx
       button.tsx
+      card.tsx
+      form.tsx
+      global-loading.tsx
       input.tsx
       label.tsx
+      select.tsx
+      spinner.tsx
   lib/
-    db.ts
     auth.ts
-prisma/
-  schema.prisma
-  seed.ts
+    db.ts
+    slug.ts
+    utils.ts
+  styles/
+    admin-theme.css
+    nprogress.css
+  middleware.ts
+types
+  next-auth.d.ts
+.env
+components.json
+eslint.config.mjs
+next-env.d.ts
+next.config.ts
+package-lock.json
+package.json
+postcss.config.mjs
+README.MD
+tsconfig.json
 ```
 
 ### Tech Stack
