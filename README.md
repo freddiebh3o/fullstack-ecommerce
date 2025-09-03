@@ -2,20 +2,20 @@
 
 This is a fullstack e-commerce application built with **Next.js 15**, **Prisma**, and **Postgres**, featuring an **admin panel** with authentication and product management.
 
-## ✨ Features (so far)
-- 🔑 Authentication with **NextAuth (credentials)** and role-based access (Admin / User)  
-- 🛠️ Admin dashboard with sidebar/topbar layout  
-- 📦 Product management  
+## Features (so far)
+- Authentication with **NextAuth (credentials)** and role-based access (Admin / User)  
+- Admin dashboard with sidebar/topbar layout  
+- Product management  
   - List all products  
   - Create new product  
   - Edit existing product  
   - Delete product  
-- 🗃️ Categories seeded & linked to products  
-- 💾 Database powered by **Prisma ORM + Postgres**  
-- 🎨 UI with **Tailwind CSS** + **shadcn/ui** components  
-- ⏳ Loading states with custom spinner + route-level loading  
+- Categories seeded & linked to products  
+- Database powered by **Prisma ORM + Postgres**  
+- UI with **Tailwind CSS** + **shadcn/ui** components  
+- Loading states with custom spinner + route-level loading  
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Install dependencies
 ```bash
