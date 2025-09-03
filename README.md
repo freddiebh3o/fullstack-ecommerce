@@ -1,36 +1,119 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Fullstack E-commerce (Next.js + Prisma)
 
-## Getting Started
+This is a fullstack e-commerce application built with **Next.js 15**, **Prisma**, and **Postgres**, featuring an **admin panel** with authentication and product management.
 
-First, run the development server:
+## ✨ Features (so far)
+- 🔑 Authentication with **NextAuth (credentials)** and role-based access (Admin / User)  
+- 🛠️ Admin dashboard with sidebar/topbar layout  
+- 📦 Product management  
+  - List all products  
+  - Create new product  
+  - Edit existing product  
+  - Delete product  
+- 🗃️ Categories seeded & linked to products  
+- 💾 Database powered by **Prisma ORM + Postgres**  
+- 🎨 UI with **Tailwind CSS** + **shadcn/ui** components  
+- ⏳ Loading states with custom spinner + route-level loading  
 
+## 🚀 Getting Started
+
+### 1. Install dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+```
+### 2. Install dependencies
+Create a .env file in the project root:
+```
+DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/dbname"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="your-random-secret"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Prisma setup
+Generate the Prisma client and set up the database
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+npx prisma generate
+npx prisma db push
+npx prisma db seed
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Run the Development server
+```
+npm run dev
+```
 
-## Learn More
+Open http://localhost:3000
 
-To learn more about Next.js, take a look at the following resources:
+### 5. Admin login
+- Email: admin@example.com
+- Password: Admin123!
+- Login at http://localhost:3000/login
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 6. Useful scripts
+```bash
+# Regenerate Prisma client
+npm run prisma:generate  # if added, or: npx prisma generate
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Reset DB (DANGER: drops all data, re-applies migrations, re-seeds)
+npx prisma migrate reset
 
-## Deploy on Vercel
+# Inspect/edit data in a UI
+npx prisma studio
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Project Structure
+```
+src/
+  app/
+    (shop)/
+      page.tsx
+    admin/
+      layout.tsx
+      page.tsx
+      loading.tsx
+      products/
+        page.tsx          # list
+        new/page.tsx      # create
+        [id]/
+          edit/page.tsx   # edit
+    api/
+      auth/[...nextauth]/route.ts
+      admin/
+        products/
+          route.ts        # POST create
+          [id]/route.ts   # PATCH update, DELETE
+  components/
+    admin/
+      admin-sidebar.tsx
+      admin-user-menu.tsx
+      product-table.tsx
+      edit-product-form.tsx
+    ui/
+      spinner.tsx
+      form.tsx
+      button.tsx
+      input.tsx
+      label.tsx
+  lib/
+    db.ts
+    auth.ts
+prisma/
+  schema.prisma
+  seed.ts
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Tech Stack
+- Framework: Next.js 15 (App Router, TypeScript)
+- UI: Tailwind CSS + shadcn/ui
+- Auth: NextAuth.js v4 (Credentials + JWT)
+- Database: Prisma ORM + Postgres
+- Icons: Lucide-react
+
+### Notes
+- Recommended Node version >= 20
+- if '@prisma/client did not initialize, run'
+```bash
+npx prisma generate
+```
+- If NextAuth JWT decryption fails, ensure NEXTAUTH_SECRET is set and restart the dev server; clear cookies.
