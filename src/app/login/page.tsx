@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 export default function LoginPage() {
   const router = useRouter();
   const search = useSearchParams();
-  const redirect = search.get("redirect") ?? "/admin";
+  const callbackUrl = search.get("callbackUrl") ?? "/admin";
 
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("Admin123!");
@@ -26,7 +26,7 @@ export default function LoginPage() {
     });
     setLoading(false);
 
-    if (res?.ok) router.push(redirect);
+    if (res?.ok) router.push(callbackUrl);
     else alert("Invalid credentials");
   }
 

@@ -66,8 +66,6 @@ npx prisma studio
 ```
 src/
   app/
-    (shop)/
-      page.tsx
     admin/
       layout.tsx
       page.tsx
@@ -83,6 +81,8 @@ src/
         products/
           route.ts        # POST create
           [id]/route.ts   # PATCH update, DELETE
+    page.tsx
+    layout.tsx
   components/
     admin/
       admin-sidebar.tsx
