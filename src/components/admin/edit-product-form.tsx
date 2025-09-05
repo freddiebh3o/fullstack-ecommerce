@@ -18,10 +18,14 @@ import {
 } from "@/components/ui/form";
 import { Category } from "@prisma/client";
 import CategorySelect from "./category-select";
+import ImageUploader from "@/components/admin/image-uploader";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
-  slug: z.string().min(2).regex(/^[a-z0-9-]+$/, "lowercase letters, numbers, dashes"),
+  slug: z
+    .string()
+    .min(2)
+    .regex(/^[a-z0-9-]+$/, "lowercase letters, numbers, dashes"),
   priceCents: z.number().int().nonnegative(),
   currency: z.string().min(1),
   description: z.string().optional(),
@@ -30,7 +34,15 @@ const schema = z.object({
 });
 type FormValues = z.input<typeof schema>;
 
-export default function EditProductForm({ id, initial, categories }: { id: string; initial: FormValues; categories: Category[] }) {
+export default function EditProductForm({
+  id,
+  initial,
+  categories,
+}: {
+  id: string;
+  initial: FormValues;
+  categories: Category[];
+}) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -60,14 +72,19 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 max-w-2xl">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="grid gap-4 max-w-2xl"
+      >
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
-              <FormControl><Input className="bg-background" {...field} /></FormControl>
+              <FormControl>
+                <Input className="bg-background" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -79,7 +96,9 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Slug</FormLabel>
-              <FormControl><Input className="bg-background" {...field} /></FormControl>
+              <FormControl>
+                <Input className="bg-background" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -97,7 +116,11 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
                   type="number"
                   inputMode="numeric"
                   {...field}
-                  onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+                  onChange={(e) =>
+                    field.onChange(
+                      e.target.value === "" ? undefined : Number(e.target.value)
+                    )
+                  }
                 />
               </FormControl>
               <FormMessage />
@@ -111,7 +134,9 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Currency</FormLabel>
-              <FormControl><Input className="bg-background" {...field} /></FormControl>
+              <FormControl>
+                <Input className="bg-background" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -123,7 +148,9 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Description</FormLabel>
-              <FormControl><Input className="bg-background" {...field} /></FormControl>
+              <FormControl>
+                <Input className="bg-background" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -135,7 +162,23 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
           render={({ field }) => (
             <FormItem>
               <FormLabel>Primary Image URL</FormLabel>
-              <FormControl><Input className="bg-background" placeholder="https://..." {...field} /></FormControl>
+              <FormControl>
+                <div className="flex items-center gap-2">
+                  <Input
+                    className="bg-background"
+                    placeholder="https://..."
+                    {...field}
+                    value={field.value ?? ""} // keep controlled
+                  />
+                  <ImageUploader
+                    scope="products"
+                    entityId={id} // <-- use the real product id that this form already receives
+                    onUploaded={(url) =>
+                      form.setValue("imageUrl", url, { shouldValidate: true })
+                    }
+                  />
+                </div>
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
@@ -148,7 +191,11 @@ export default function EditProductForm({ id, initial, categories }: { id: strin
             <FormItem>
               <FormLabel>Category</FormLabel>
               <FormControl>
-                <CategorySelect field={field} options={categories} placeholder="Select a category" />
+                <CategorySelect
+                  field={field}
+                  options={categories}
+                  placeholder="Select a category"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -5,11 +5,12 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import CategorySelect from "@/components/admin/category-select";
+import ImageUploader from "@/components/admin/image-uploader";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -26,9 +27,16 @@ function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
 }
 
+
 export default function NewProductForm({ categories }: { categories: { name: string; slug: string }[] }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
+
+  const draftIdRef = useRef<string>(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2)
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -50,9 +58,12 @@ export default function NewProductForm({ categories }: { categories: { name: str
       alert(`Error: ${msg}`);
       return;
     }
-    router.push("/admin/products");
+
+    const location = res.headers.get("Location");
+    router.push(location || "/admin/products");
     router.refresh();
   }
+  
 
   return (
     <Form {...form}>
@@ -140,8 +151,31 @@ export default function NewProductForm({ categories }: { categories: { name: str
           name="imageUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Primary Image URL</FormLabel>
-              <FormControl><Input placeholder="https://..." {...field} /></FormControl>
+              <FormField
+                control={form.control}
+                name="imageUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Image URL</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="https://..."
+                          {...field}
+                          value={field.value ?? ""}   // keep controlled
+                        />
+                        <ImageUploader
+                          scope="products"
+                          entityId={`drafts/${draftIdRef.current}`} // uploads under products/drafts/<uuid>
+                          onUploaded={(url) => form.setValue("imageUrl", url, { shouldValidate: true })}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormMessage />
             </FormItem>
           )}
