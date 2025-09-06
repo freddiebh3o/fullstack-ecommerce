@@ -1,3 +1,4 @@
+// src/components/admin/edit-product-form.tsx
 "use client";
 
 import { z } from "zod";

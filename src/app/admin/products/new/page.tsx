@@ -1,3 +1,4 @@
+// src/app/admin/products/new/page.tsx
 import { db } from "@/lib/db";
 import NewProductForm from "@/components/admin/new-product-form";
 

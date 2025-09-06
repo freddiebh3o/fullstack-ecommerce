@@ -89,84 +89,122 @@ npx prisma studio
 
 ### Project Structure
 ```
-prisma/
-  schema.prisma
-  seed.ts
-src/
-  app/
-    403/
-      page.tsx
-    admin/
-      layout.tsx
-      page.tsx
-      loading.tsx
-      products/
-        page.tsx          # list
-        new/page.tsx      # create
-        [id]/
-          edit/page.tsx   # edit
-      categories/
-        page.tsx          # list
-        new/page.tsx      # create
-        [id]/
-          edit/page.tsz   # edit
-    api/
-      auth/[...nextauth]/route.ts
-      admin/
-        products/
-          route.ts        # POST create
-          [id]/route.ts   # PATCH update, DELETE
-        categories/
-          route.ts        # POST create
-          [id]/route.ts   # PATCH update, DELETE
-    page.tsx
-    layout.tsx
-    globals.css
-    favicon.ico
-  components/
-    admin/
-      admin-sidebar.tsx
-      admin-user-menu.tsx
-      category-select.tsx
-      category-table.tsx
-      edit-category-form.tsx
-      edit-product-form.tsx
-      new-product-form.tsx
-      product-table.tsx
-    theme/
-      admin-theme-provider.tsx
-      theme-toggle.tsx
-    ui/
-      button.tsx
-      card.tsx
-      form.tsx
-      global-loading.tsx
-      input.tsx
-      label.tsx
-      select.tsx
-      spinner.tsx
-  lib/
-    auth.ts
-    db.ts
-    slug.ts
-    utils.ts
-  styles/
-    admin-theme.css
-    nprogress.css
-  middleware.ts
-types
-  next-auth.d.ts
-.env
-components.json
-eslint.config.mjs
-next-env.d.ts
-next.config.ts
-package-lock.json
-package.json
-postcss.config.mjs
-README.MD
-tsconfig.json
-docker-compose.yml
++---prisma
+|   +---migrations
+|   |   +---20250902222844_init
+|   |   |   \---migration.sql
+|   |   +---20250902224148_add_user_model
+|   |   |   \---migration.sql
+|   |   +---20250903124712_categories_crud
+|   |   |   \---migration.sql
+|   |   \---migration_lock.toml
+|   +---schema.prisma
+|   \---seed.ts
++---public
+|   +---file.svg
+|   +---globe.svg
+|   +---next.svg
+|   +---vercel.svg
+|   \---window.svg
++---src
+|   +---app
+|   |   +---403
+|   |   |   \---page.tsx
+|   |   +---admin
+|   |   |   +---brands
+|   |   |   |   +---[id]
+|   |   |   |   +---new
+|   |   |   |   \---page.tsx
+|   |   |   +---categories
+|   |   |   |   +---[id]
+|   |   |   |   +---new
+|   |   |   |   \---page.tsx
+|   |   |   +---products
+|   |   |   |   +---[id]
+|   |   |   |   +---new
+|   |   |   |   \---page.tsx
+|   |   |   +---users
+|   |   |   |   +---[id]
+|   |   |   |   +---new
+|   |   |   |   \---page.tsx
+|   |   |   +---layout.tsx
+|   |   |   +---loading.tsx
+|   |   |   \---page.tsx
+|   |   +---api
+|   |   |   +---admin
+|   |   |   |   +---brands
+|   |   |   |   +---categories
+|   |   |   |   +---products
+|   |   |   |   +---uploads
+|   |   |   |   \---users
+|   |   |   \---auth
+|   |   |       \---[...nextauth]
+|   |   +---login
+|   |   |   \---page.tsx
+|   |   +---favicon.ico
+|   |   +---globals.css
+|   |   +---layout.tsx
+|   |   \---page.tsx
+|   +---components
+|   |   +---admin
+|   |   |   +---admin-sidebar.tsx
+|   |   |   +---admin-user-menu.tsx
+|   |   |   +---brand-search.tsx
+|   |   |   +---brand-select.tsx
+|   |   |   +---brand-table.tsx
+|   |   |   +---category-select.tsx
+|   |   |   +---category-table.tsx
+|   |   |   +---edit-brand-form.tsx
+|   |   |   +---edit-category-form.tsx
+|   |   |   +---edit-product-form.tsx
+|   |   |   +---edit-user-form.tsx
+|   |   |   +---image-uploader.tsx
+|   |   |   +---new-product-form.tsx
+|   |   |   +---new-user-form.tsx
+|   |   |   +---product-table.tsx
+|   |   |   \---user-table.tsx
+|   |   +---auth
+|   |   |   \---sign-out-button.tsx
+|   |   +---theme
+|   |   |   +---admin-theme-provider.tsx
+|   |   |   \---theme-toggle.tsx
+|   |   \---ui
+|   |       +---button.tsx
+|   |       +---card.tsx
+|   |       +---form.tsx
+|   |       +---global-loading.tsx
+|   |       +---input.tsx
+|   |       +---label.tsx
+|   |       +---pagination.tsx
+|   |       +---select.tsx
+|   |       +---spinner.tsx
+|   |       \---toast-provider.tsx
+|   +---lib
+|   |   +---auth.ts
+|   |   +---db.ts
+|   |   +---s3.ts
+|   |   +---slug.ts
+|   |   \---utils.ts
+|   +---styles
+|   |   +---admin-theme.css
+|   |   \---nprogress.css
+|   \---middleware.ts
++---types
+|   \---next-auth.d.ts
++---.env
++---.env.example
++---.gitignore
++---components.json
++---docker-compose.yml
++---eslint.config.mjs
++---next-env.d.ts
++---next.config.ts
++---package-lock.json
++---package.json
++---postcss.config.mjs
++---print-tree.mjs
++---README.md
+\---tsconfig.json
 ```
 
 ### Tech Stack
@@ -178,6 +216,41 @@ docker-compose.yml
 - Icons: Lucide-react
 
 ## User Stories (Backlog, grouped by Epic)
+
+### Epic: Multi-Tenancy & Permissions (FOUNDATION)
+#### Sub-Epic A: Tenant Fundamentals
+- [ ] Admin can create a tenant (name, slug).
+- [ ] Admin can switch tenants in the admin header.
+- [ ] Admin can invite a user to a tenant (email invite with temporary password).
+- [ ] Admin can manage tenant members (list, change role, remove).
+- [ ] All admin/API queries are scoped by tenant.
+
+#### Sub-Epic B: Plans & Feature Flags
+- [ ] Seed plans (`free`, `pro`, `enterprise`) with features (brands, tags, cms, analytics).
+- [ ] Tenant can have a plan + feature overrides.
+- [ ] Admin UI hides modules for disabled features.
+- [ ] API blocks disabled features (403).
+- [ ] Tenant “Plan & Features” screen to view/pretend-upgrade.
+
+#### Sub-Epic C: Roles & Permissions (RBAC)
+- [ ] Seed permission catalog.
+- [ ] Seed default roles (Owner, Admin, Editor, ReadOnly).
+- [ ] Admin can create custom roles (toggle permissions).
+- [ ] Admin can assign roles to members.
+- [ ] Authorization middleware + `can(permission)` helper everywhere.
+- [ ] Safeguards (last owner cannot be demoted, cannot delete self, etc.).
+
+#### Sub-Epic D: Tenant Branding & Storefront Identity
+- [ ] Tenant can upload logo, set brand colors, override theme tokens.
+- [ ] Admin header shows tenant logo; storefront applies same tokens.
+- [ ] Assets stored under `tenants/<tenantId>/…` in S3.
+- [ ] (Optional later) Subdomain/path routing per tenant.
+
+#### Sub-Epic E: Integrity, Audit & Safety
+- [ ] Audit log includes tenantId, userId, action, entity, before/after, timestamp.
+- [ ] Export tenant data (JSON/CSV).
+- [ ] Rate-limit sensitive ops per tenant.
+- [ ] Ensure delete flows respect tenant ownership.
 
 ### Epic: Catalog Structure
 - [x] Admins can create brands (name, slug, logo, description, website).
