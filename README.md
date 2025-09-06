@@ -181,6 +181,11 @@ docker-compose.yml
 
 ### Epic: Catalog Structure
 - [x] Admins can create brands (name, slug, logo, description, website).
+  - [x] Brands table with search + pagination
+  - [x] Brand create/edit forms with slug auto-gen + URL validation
+  - [x] Logo upload via drag-and-drop with preview
+  - [x] Toast notifications for success/error
+  - [x] Brand column in product list
 - [ ] Admins can create tags and attach them to products.
 - [ ] Admins can nest categories into subcategories.
 - [ ] Admins can set category banner and blurb for storefront.
