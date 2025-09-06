@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import CategorySelect from "@/components/admin/category-select";
 import ImageUploader from "@/components/admin/image-uploader";
+import BrandSelect from "@/components/admin/brand-select";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -20,6 +21,7 @@ const schema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().url().optional().or(z.literal("")),
   categorySlug: z.string().optional().or(z.literal("")),
+  brandSlug: z.string().optional().or(z.literal("")),
 });
 type FormValues = z.input<typeof schema>;
 
@@ -28,7 +30,19 @@ function slugify(s: string) {
 }
 
 
-export default function NewProductForm({ categories }: { categories: { name: string; slug: string }[] }) {
+export default function NewProductForm({ 
+    categories, 
+    brands 
+  }: { 
+    categories: { 
+      name: string; 
+      slug: string 
+    }[], 
+    brands: { 
+      name: string; 
+      slug: string 
+    }[] 
+  }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -166,8 +180,10 @@ export default function NewProductForm({ categories }: { categories: { name: str
                         />
                         <ImageUploader
                           scope="products"
+                          currentUrl={form.getValues("imageUrl") || undefined}
                           entityId={`drafts/${draftIdRef.current}`} // uploads under products/drafts/<uuid>
                           onUploaded={(url) => form.setValue("imageUrl", url, { shouldValidate: true })}
+                          onClear={() => form.setValue("imageUrl", "", { shouldValidate: true })}
                         />
                       </div>
                     </FormControl>
@@ -189,6 +205,20 @@ export default function NewProductForm({ categories }: { categories: { name: str
               <FormLabel>Category</FormLabel>
               <FormControl>
                 <CategorySelect field={field} options={categories} placeholder="Select a category" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="brandSlug"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Brand</FormLabel>
+              <FormControl>
+                <BrandSelect field={field} options={brands} placeholder="Select a brand" />
               </FormControl>
               <FormMessage />
             </FormItem>

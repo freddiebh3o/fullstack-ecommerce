@@ -180,7 +180,7 @@ docker-compose.yml
 ## User Stories (Backlog, grouped by Epic)
 
 ### Epic: Catalog Structure
-- [ ] Admins can create brands (name, slug, logo, description, website).
+- [x] Admins can create brands (name, slug, logo, description, website).
 - [ ] Admins can create tags and attach them to products.
 - [ ] Admins can nest categories into subcategories.
 - [ ] Admins can set category banner and blurb for storefront.

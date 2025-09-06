@@ -10,6 +10,7 @@ const links = [
   { href: "/admin/products", label: "Products" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/users", label: "Users" },
+  { href: "/admin/brands", label: "Brands" },
 ];
 
 export default function AdminSidebar() {

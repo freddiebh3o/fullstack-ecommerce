@@ -3,6 +3,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/toast-provider";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -24,11 +25,13 @@ type ProductRow = {
   stock: number;
   createdAt: string | Date;
   category?: { name: string | null } | null;
+  brand?: { name: string | null } | null;
   images: { id: string; url: string }[];
 };
 
 export default function ProductTable({ products }: { products: ProductRow[] }) {
   const router = useRouter();
+  const { push: toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -39,10 +42,11 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
       const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const msg = await res.text();
-        alert(`Failed to delete: ${msg}`);
+        toast({ title: "Delete failed", message: msg, variant: "destructive" });
         return;
       }
       startTransition(() => router.refresh());
+      toast({ message: "Product deleted" });
     } finally {
       setBusyId(null);
     }
@@ -55,6 +59,7 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
           <tr className="text-foreground">
             <th className="px-4 py-3">Name</th>
             <th className="px-4 py-3">Category</th>
+            <th className="px-4 py-3">Brand</th>
             <th className="px-4 py-3">Price</th>
             <th className="px-4 py-3">Stock</th>
             <th className="px-4 py-3">Created</th>
@@ -69,6 +74,7 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
                 <div className="text-muted-foreground">{p.slug}</div>
               </td>
               <td className="px-4 py-3">{p.category?.name ?? "—"}</td>
+              <td className="px-4 py-3">{p.brand?.name ?? "—"}</td>
               <td className="px-4 py-3">{formatPrice(p.priceCents / 100, p.currency || "GBP")}</td>
               <td className="px-4 py-3">{p.stock ?? 0}</td>
               <td className="px-4 py-3">{DATE_FMT.format(new Date(p.createdAt))}</td>

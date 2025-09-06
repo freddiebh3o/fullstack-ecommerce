@@ -1,3 +1,4 @@
+// src/app/api/admin/uploads/presign/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
@@ -21,17 +22,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const parsed = bodySchema.safeParse(await req.json());
+  // Accept both camelCase and snake-ish aliases from the client
+  const raw = await req.json();
+  const normalized = {
+    filename: raw.filename ?? raw.fileName,
+    contentType: raw.contentType ?? raw.fileType,
+    byteLength: raw.byteLength ?? raw.fileSize,
+    scope: raw.scope,
+    entityId: raw.entityId,
+  };
+
+  const parsed = bodySchema.safeParse(normalized);
   if (!parsed.success) {
     return NextResponse.json(parsed.error.flatten(), { status: 400 });
   }
 
   const { filename, contentType, scope, entityId } = parsed.data;
 
-  // sanitize extension
-  const ext = (filename.split(".").pop() || "jpg")
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, "");
+  // Sanitize file extension
+  const ext = (filename.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
   const key = `${scope}/${entityId}/${crypto.randomUUID()}.${ext}`;
 
   const bucket = process.env.S3_BUCKET_NAME!;
@@ -39,20 +48,30 @@ export async function POST(req: Request) {
     Bucket: bucket,
     Key: key,
     ContentType: contentType,
-    // If you skipped the public-read bucket policy, omit this
-    // and use presigned GET for viewing instead.
+    // Public-read works because you've set a permissive bucket policy in LocalStack
     ACL: "public-read",
   });
 
-  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 60 });
+  // Presigned PUT URL for direct upload
+  const url = await getSignedUrl(s3, command, { expiresIn: 60 });
 
-  // public URL (works because you set a public-read bucket policy in LocalStack)
+  // Public URL to view the file after upload
+  // Prefer virtual-hosted style for LocalStack: http://s3.localhost.localstack.cloud:4566/<bucket>/<key>
   const publicBase =
-    process.env.S3_PUBLIC_BASE ?? `http://localhost:4566/${bucket}`;
-  // localstack path-style: include bucket in the path
+    process.env.S3_PUBLIC_BASE ?? "http://s3.localhost.localstack.cloud:4566";
   const publicUrl = `${publicBase}/${bucket}/${key}`
     .replace(/\/{2,}/g, "/")
     .replace(":/", "://");
 
-  return NextResponse.json({ uploadUrl, key, publicUrl }, { status: 200 });
+  // Return the shape expected by the client uploader
+  return NextResponse.json(
+    {
+      url,               // presigned upload URL
+      method: "PUT",     // client uses PUT by default
+      headers: {},       // you can add custom headers if needed
+      key,               // (optional) S3 key
+      publicUrl,         // final public URL to store in DB
+    },
+    { status: 200 }
+  );
 }

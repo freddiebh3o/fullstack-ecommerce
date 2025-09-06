@@ -3,6 +3,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { useToast } from "../ui/toast-provider";
 
 type Row = {
   id: string;
@@ -21,6 +22,7 @@ const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
 
 export default function CategoryTable({ categories }: { categories: Row[] }) {
   const router = useRouter();
+  const { push: toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -31,11 +33,12 @@ export default function CategoryTable({ categories }: { categories: Row[] }) {
       const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const msg = await res.text();
-        alert(`Failed to delete: ${msg}`);
+        toast({ title: "Delete failed", message: msg, variant: "destructive" });
         return;
       }
       startTransition(() => router.refresh());
     } finally {
+      toast({ message: "Category deleted" });
       setBusyId(null);
     }
   }

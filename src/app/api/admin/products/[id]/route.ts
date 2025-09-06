@@ -15,6 +15,7 @@ const bodySchema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().url().optional().or(z.literal("")),
   categorySlug: z.string().optional().or(z.literal("")),
+  brandSlug: z.string().optional().or(z.literal("")),
 });
 
 export async function DELETE(
@@ -85,6 +86,13 @@ export async function PATCH(
     categoryId = cat.id;
   }
 
+  let brandId: string | null = null;
+  if (data.brandSlug) {
+    const b = await db.brand.findUnique({ where: { slug: data.brandSlug } });
+    if (!b) return NextResponse.json({ error: "Brand not found" }, { status: 400 });
+    brandId = b.id;
+  }
+
   // Update product
   const updated = await db.product.update({
     where: { id },
@@ -95,8 +103,9 @@ export async function PATCH(
       currency: data.currency,
       description: data.description || null,
       categoryId,
+      brandId,
     },
-    include: { images: true, category: true },
+    include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
   });
 
   // Replace or set primary image if provided

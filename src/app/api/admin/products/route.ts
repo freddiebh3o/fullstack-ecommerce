@@ -13,6 +13,7 @@ const bodySchema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().url().optional(),
   categorySlug: z.string().optional(),
+  brandSlug: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -47,6 +48,13 @@ export async function POST(req: Request) {
     categoryId = cat.id;
   }
 
+  let brandId: string | undefined = undefined;
+  if (data.brandSlug) {
+    const b = await db.brand.findUnique({ where: { slug: data.brandSlug } });
+    if (!b) return NextResponse.json({ error: "Brand not found" }, { status: 400 });
+    brandId = b.id;
+  }
+
   // Create product (+ primary image if provided)
   const product = await db.product.create({
     data: {
@@ -56,6 +64,7 @@ export async function POST(req: Request) {
       priceCents: data.priceCents,
       currency: data.currency,
       categoryId,
+      brandId,
       images: data.imageUrl
         ? { create: [{ url: data.imageUrl, sortOrder: 0, alt: data.name }] }
         : undefined,
