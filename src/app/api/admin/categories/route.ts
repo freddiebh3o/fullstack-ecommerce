@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
-import { getTenantDbCtx } from "@/lib/tenant-db";
+import { tenantDb } from "@/lib/tenant-db";
 
 const bodySchema = z.object({
   name: z.string().min(2),
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { db, tenantId } = await getTenantDbCtx();
+  const { db, tenantId } = await tenantDb();
 
   const parsed = bodySchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json(parsed.error.flatten(), { status: 400 });

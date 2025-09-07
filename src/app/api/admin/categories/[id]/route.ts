@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
-import { getTenantDb } from "@/lib/tenant-db";
+import { tenantDb } from "@/lib/tenant-db";
 
 const bodySchema = z.object({
   name: z.string().min(2),
@@ -18,7 +18,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const db = await getTenantDb();
+  const { db } = await tenantDb();
   const { id } = await params;
 
   // ensure belongs to this tenant (scoped)
@@ -52,7 +52,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const db = await getTenantDb();
+  const { db } = await tenantDb();
   const { id } = await params;
 
   // ensure belongs to this tenant

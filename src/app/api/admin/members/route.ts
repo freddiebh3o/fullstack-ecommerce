@@ -6,7 +6,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { can } from "@/lib/permissions";
 import { getCurrentTenantId } from "@/lib/tenant";
-import { getTenantDb } from "@/lib/tenant-db";
+import { tenantDb } from "@/lib/tenant-db";
 
 const postSchema = z.object({
   email: z.string().email(),
@@ -29,7 +29,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const db = await getTenantDb();
+  const { db } = await tenantDb();
 
   const memberships = await db.membership.findMany({
     orderBy: { createdAt: "asc" },
@@ -44,18 +44,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if ((session?.user as any)?.role !== "ADMIN" && (session?.user as any)?.role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) return NextResponse.json({ error: "No tenant" }, { status: 400 });
-  
+  const { db, tenantId } = await tenantDb();
   if (!(await can("member.manage", tenantId))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const db = await getTenantDb();
+  if (!tenantId) return NextResponse.json({ error: "No tenant" }, { status: 400 });
 
   const parsed = postSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json(parsed.error.flatten(), { status: 400 });
