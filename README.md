@@ -215,6 +215,17 @@ npx prisma studio
 
 ### Project Structure
 ```
++---.localstack
+|   +---cache
+|   |   +---machine.json
+|   |   +---server.test.pem
+|   |   +---server.test.pem.crt
+|   |   \---server.test.pem.key
+|   +---lib
+|   +---logs
+|   \---tmp
++---localstack-init
+|   \---init-s3.sh
 +---prisma
 |   +---migrations
 |   |   +---20250902222844_init
@@ -222,6 +233,16 @@ npx prisma studio
 |   |   +---20250902224148_add_user_model
 |   |   |   \---migration.sql
 |   |   +---20250903124712_categories_crud
+|   |   |   \---migration.sql
+|   |   +---20250906203701_add_multitenancy_and_rbac_2
+|   |   |   \---migration.sql
+|   |   +---20250906213200_tenant_scoped_slug_uniques
+|   |   |   \---migration.sql
+|   |   +---20250906215224_add_superadmin_role
+|   |   |   \---migration.sql
+|   |   +---20250906234105_drop_global_slug_uniques
+|   |   |   \---migration.sql
+|   |   +---20250907213354_add_audit_log
 |   |   |   \---migration.sql
 |   |   \---migration_lock.toml
 |   +---schema.prisma
@@ -232,10 +253,15 @@ npx prisma studio
 |   +---next.svg
 |   +---vercel.svg
 |   \---window.svg
++---scripts
+|   \---fix-roles.js
 +---src
 |   +---app
 |   |   +---403
 |   |   |   \---page.tsx
+|   |   +---actions
+|   |   |   +---perm.ts
+|   |   |   \---tenant.ts
 |   |   +---admin
 |   |   |   +---brands
 |   |   |   |   +---[id]
@@ -243,6 +269,9 @@ npx prisma studio
 |   |   |   |   \---page.tsx
 |   |   |   +---categories
 |   |   |   |   +---[id]
+|   |   |   |   +---new
+|   |   |   |   \---page.tsx
+|   |   |   +---members
 |   |   |   |   +---new
 |   |   |   |   \---page.tsx
 |   |   |   +---products
@@ -260,7 +289,9 @@ npx prisma studio
 |   |   |   +---admin
 |   |   |   |   +---brands
 |   |   |   |   +---categories
+|   |   |   |   +---members
 |   |   |   |   +---products
+|   |   |   |   +---tenant
 |   |   |   |   +---uploads
 |   |   |   |   \---users
 |   |   |   \---auth
@@ -285,11 +316,17 @@ npx prisma studio
 |   |   |   +---edit-product-form.tsx
 |   |   |   +---edit-user-form.tsx
 |   |   |   +---image-uploader.tsx
+|   |   |   +---member-table.tsx
+|   |   |   +---new-category-form.tsx
+|   |   |   +---new-member-form.tsx
 |   |   |   +---new-product-form.tsx
 |   |   |   +---new-user-form.tsx
 |   |   |   +---product-table.tsx
+|   |   |   +---tenant-switcher.tsx
+|   |   |   +---TenantCookieGuard.tsx
 |   |   |   \---user-table.tsx
 |   |   +---auth
+|   |   |   +---PermissionGate.tsx
 |   |   |   \---sign-out-button.tsx
 |   |   +---theme
 |   |   |   +---admin-theme-provider.tsx
@@ -306,10 +343,21 @@ npx prisma studio
 |   |       +---spinner.tsx
 |   |       \---toast-provider.tsx
 |   +---lib
+|   |   +---api-ctx.ts
+|   |   +---api-response.ts
+|   |   +---audit.ts
 |   |   +---auth.ts
+|   |   +---client-fetch.ts
 |   |   +---db.ts
+|   |   +---page-guard.ts
+|   |   +---permissions.ts
+|   |   +---route-guard.ts
 |   |   +---s3.ts
+|   |   +---server-tenant.ts
 |   |   +---slug.ts
+|   |   +---tenant-bootstrap.ts
+|   |   +---tenant-db.ts
+|   |   +---tenant.ts
 |   |   \---utils.ts
 |   +---styles
 |   |   +---admin-theme.css
