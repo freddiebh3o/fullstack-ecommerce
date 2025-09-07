@@ -29,6 +29,7 @@ model Tenant {
   categories       Category[]
   brands           Brand[]
   images           ProductImage[]
+  auditLogs        AuditLog[]  
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 }
@@ -77,9 +78,9 @@ model Membership {
 model Role {
   id          String                 @id @default(cuid())
   tenantId    String? // null => system default role template
-  tenant      Tenant?                @relation(fields: [tenantId], references: [id])
   key         RoleKey
   name        String
+  tenant      Tenant?                @relation(fields: [tenantId], references: [id])
   permissions PermissionAssignment[]
   memberships Membership[]
 
@@ -186,6 +187,19 @@ model User {
   passwordHash String
   role         SystemRole   @default(USER) // system role (legacy; still used to gate /admin)
   memberships  Membership[]
+  auditLogs    AuditLog[]
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  action    String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
 }

@@ -4,6 +4,8 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useToast } from "../ui/toast-provider";
+import PermissionGate from "@/components/auth/PermissionGate";
+import { canWriteCategory } from "@/app/actions/perm";
 
 type Row = {
   id: string;
@@ -31,14 +33,21 @@ export default function CategoryTable({ categories }: { categories: Row[] }) {
     setBusyId(id);
     try {
       const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
+      let msg = "Failed to delete category.";
+      try {
+        const body = await res.json();
+        if (body?.error?.message) msg = body.error.message;
+      } catch {
+        // fall back to text for non-JSON responses
+        try { msg = await res.text(); } catch {}
+      }
       if (!res.ok) {
-        const msg = await res.text();
         toast({ title: "Delete failed", message: msg, variant: "destructive" });
         return;
       }
+      toast({ message: "Category deleted" });
       startTransition(() => router.refresh());
     } finally {
-      toast({ message: "Category deleted" });
       setBusyId(null);
     }
   }
@@ -63,19 +72,32 @@ export default function CategoryTable({ categories }: { categories: Row[] }) {
               <td className="px-4 py-3">{c._count.products}</td>
               <td className="px-4 py-3">{DATE_FMT.format(new Date(c.createdAt))}</td>
               <td className="px-4 py-3 text-right">
-                <a
-                  href={`/admin/categories/${c.id}/edit`}
-                  className="mr-2 underline hover:no-underline"
-                >
-                  Edit
-                </a>
-                <button
-                  onClick={() => handleDelete(c.id, c.name)}
-                  disabled={busyId === c.id || isPending}
-                  className="text-destructive underline hover:no-underline disabled:opacity-50"
-                >
-                  {busyId === c.id ? "Deleting..." : "Delete"}
-                </button>
+                <PermissionGate check={canWriteCategory}>
+                  {(allowed) => (
+                    <div className="inline-flex items-center gap-2">
+                      <a
+                        href={allowed ? `/admin/categories/${c.id}/edit` : "#"}
+                        className={`underline hover:no-underline ${
+                          allowed ? "" : "pointer-events-none opacity-40"
+                        }`}
+                        aria-disabled={!allowed}
+                        title={allowed ? "Edit" : "You don’t have permission to edit"}
+                      >
+                        Edit
+                      </a>
+                      <button
+                        onClick={() => allowed && handleDelete(c.id, c.name)}
+                        disabled={!allowed || busyId === c.id || isPending}
+                        className={`text-destructive underline hover:no-underline disabled:opacity-50 ${
+                          allowed ? "" : "cursor-not-allowed"
+                        }`}
+                        title={allowed ? "Delete" : "You don’t have permission to delete"}
+                      >
+                        {busyId === c.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  )}
+                </PermissionGate>
               </td>
             </tr>
           ))}

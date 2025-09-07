@@ -9,23 +9,29 @@ import ThemeToggle from "@/components/theme/theme-toggle";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { db } from "@/lib/db";
 import TenantSwitcher from "@/components/admin/tenant-switcher";
+import TenantCookieGuard from "@/components/admin/TenantCookieGuard";
+import { getCurrentTenantId } from "@/lib/tenant";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions);
-
   const isSuper = (session?.user as any)?.role === "SUPERADMIN";
 
   const tenants = isSuper
-  ? await db.tenant.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })
-  : (await db.membership.findMany({
-      where: { userId: session?.user?.id ?? "" },
-      select: { tenantId: true, tenant: { select: { name: true } } },
-      orderBy: { createdAt: "asc" },
-    })).map(m => ({ id: m.tenantId, name: m.tenant.name }));
+    ? await db.tenant.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })
+    : (await db.membership.findMany({
+        where: { userId: session?.user?.id ?? "" },
+        select: { tenantId: true, tenant: { select: { name: true } } },
+        orderBy: { createdAt: "asc" },
+      })).map(m => ({ id: m.tenantId, name: m.tenant.name }));
+
+  const currentTenantId = await getCurrentTenantId();
 
   return (
     <AdminThemeProvider>
       <ToastProvider>
+        {/* ensure cookie is synced to valid tenant (no-op if already set) */}
+        <TenantCookieGuard tenantId={currentTenantId} />
+      
         <div 
           data-admin
           className="grid min-h-screen grid-cols-1 lg:grid-cols-[260px_1fr]"
@@ -40,7 +46,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
                 <div className="font-semibold">Admin</div>
 
                 <div className="flex items-center gap-2">
-                  <TenantSwitcher tenants={tenants} currentTenantId={(session as any)?.currentTenantId} />
+                  <TenantSwitcher tenants={tenants} currentTenantId={currentTenantId} />
                   <ThemeToggle />
                   <AdminUserMenu email={session?.user?.email ?? ""} />
                 </div>

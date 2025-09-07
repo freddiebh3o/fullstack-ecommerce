@@ -67,39 +67,43 @@ async function main() {
   });
 
   // 2) Global permission catalog
+  const upsertPerm = (key: string, name: string) =>
+    prisma.permission.upsert({
+      where: { key },
+      update: { name },
+      create: { key, name },
+    });
+
   const [
-    permProdRead,      // product.read
-    permProdWrite,     // product.write
-    permBrandWrite,    // brand.write
-    permCategoryWrite, // category.write
-    permMemberManage,  // member.manage
+    permProdRead,
+    permProdWrite, 
+    permBrandWrite,
+    permCategoryWrite,
+    permMemberManage,
+    permCategoryRead,
+    permBrandRead,
+    permMemberRead,
   ] = await Promise.all([
-    prisma.permission.upsert({
-      where: { key: "product.read" },
-      update: { name: "Read products" },
-      create: { key: "product.read", name: "Read products" },
-    }),
-    prisma.permission.upsert({
-      where: { key: "product.write" },
-      update: { name: "Create/update/delete products" },
-      create: { key: "product.write", name: "Create/update/delete products" },
-    }),
-    prisma.permission.upsert({
-      where: { key: "brand.write" },
-      update: { name: "Create/update/delete brands" },
-      create: { key: "brand.write", name: "Create/update/delete brands" },
-    }),
-    prisma.permission.upsert({
-      where: { key: "category.write" },
-      update: { name: "Create/update/delete categories" },
-      create: { key: "category.write", name: "Create/update/delete categories" },
-    }),
-    prisma.permission.upsert({
-      where: { key: "member.manage" },
-      update: { name: "Manage tenant members" },
-      create: { key: "member.manage", name: "Manage tenant members" },
-    }),
+    upsertPerm("product.read",   "Read products"),
+    upsertPerm("product.write",  "Create/update/delete products"), // 2
+    upsertPerm("brand.write",    "Create/update/delete brands"),   // 3
+    upsertPerm("category.write", "Create/update/delete categories"),
+    upsertPerm("member.manage",  "Manage tenant members"),
+    upsertPerm("category.read",  "Read categories"),
+    upsertPerm("brand.read",     "Read brands"),
+    upsertPerm("member.read",    "Read members"),
   ]);
+
+  console.log("perm map:", {
+    permProdRead: "product.read",
+    permProdWrite: "product.write",
+    permBrandWrite: "brand.write",
+    permCategoryWrite: "category.write",
+    permMemberManage: "member.manage",
+    permCategoryRead: "category.read",
+    permBrandRead: "brand.read",
+    permMemberRead: "member.read",
+  });
 
   // 3) Tenants
   const [tenantA, tenantB] = await Promise.all([
@@ -143,7 +147,7 @@ async function main() {
     where: { email: "editor+default@example.com" },
     update: {},
     create: { email: "editor+default@example.com", name: "Default Editor", role: "USER", passwordHash: await bcrypt.hash("Editor123!", 10) },
-  });
+});
   const aRO     = await prisma.user.upsert({
     where: { email: "ro+default@example.com" },
     update: {},
@@ -229,10 +233,26 @@ async function main() {
       });
     };
 
-    await assign(tOwner?.id, [permProdRead.id, permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id]);
-    await assign(tAdmin?.id, [permProdRead.id, permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id]);
-    await assign(tEditor?.id, [permProdRead.id, permProdWrite.id]);
-    await assign(tRO?.id,    [permProdRead.id]);
+    // OWNER & ADMIN → full read + full write
+    await assign(tOwner?.id, [
+      permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
+      permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id,
+    ]);
+    await assign(tAdmin?.id, [
+      permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
+      permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id,
+    ]);
+
+    // EDITOR → full read + all writes except members
+    await assign(tEditor?.id, [
+      permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
+      permProdWrite.id, permBrandWrite.id, permCategoryWrite.id,
+    ]);
+
+    // READONLY → read only
+    await assign(tRO?.id, [
+      permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
+    ]);
   }
 
   await assignPerms(tenantA.id);
@@ -307,6 +327,39 @@ async function main() {
       "owner+acme@example.com", "admin+acme@example.com", "editor+acme@example.com", "ro+acme@example.com",
     ],
   });
+
+  // Debug: print users with their memberships/roles/permissions
+  const users = await prisma.user.findMany({
+    include: {
+      memberships: {
+        include: {
+          tenant: { select: { slug: true } },
+          role: {
+            select: {
+              key: true,
+              name: true,
+              permissions: {
+                select: { permission: { select: { key: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  console.log("=== Users & Roles after seed ===");
+  for (const u of users) {
+    console.log(`User: ${u.email} (${u.name ?? "no name"}) [system role=${u.role}]`);
+    for (const m of u.memberships) {
+      console.log(
+        `  Tenant=${m.tenant.slug} → ${m.role.key} (${m.role.name}) perms=[${m.role.permissions
+          .map(p => p.permission.key)
+          .join(", ")}]`
+      );
+    }
+  }
+  console.log("================================");
 }
 
 main()

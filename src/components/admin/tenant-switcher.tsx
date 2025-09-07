@@ -1,31 +1,36 @@
 // src/components/admin/tenant-switcher.tsx
 "use client";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
-export default function TenantSwitcher({
-  tenants,
-  currentTenantId,
-}: { tenants: { id: string; name: string }[]; currentTenantId?: string }) {
-  const router = useRouter();
-  const [value, setValue] = useState(currentTenantId);
+import * as React from "react";
+import { setCurrentTenant } from "@/app/actions/tenant";
 
-  async function switchTenant(id: string) {
-    setValue(id); // optimistic
-    await fetch("/api/admin/tenant/switch", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tenantId: id }),
-    });
-    router.refresh();
+type Props = {
+  tenants: { id: string; name: string }[];
+  currentTenantId?: string | null;
+};
+
+export default function TenantSwitcher({ tenants, currentTenantId }: Props) {
+  const [value, setValue] = React.useState(currentTenantId ?? tenants[0]?.id ?? "");
+
+  React.useEffect(() => {
+    setValue(currentTenantId ?? tenants[0]?.id ?? "");
+  }, [currentTenantId, tenants]);
+
+  async function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const id = e.target.value;
+    setValue(id);
+    try {
+      await setCurrentTenant(id);
+      // optional: optimistic UI is enough; server revalidation will refresh content
+    } catch (e: any) {
+      alert(e.message || "Could not switch tenant.");
+    }
   }
 
+  if (tenants.length === 0) return null;
+
   return (
-    <select
-      className="rounded-md border bg-background px-2 py-1 text-sm"
-      value={value}
-      onChange={e => switchTenant(e.target.value)}
-    >
+    <select value={value} onChange={onChange} className="border rounded px-2 py-1 bg-background">
       {tenants.map(t => (
         <option key={t.id} value={t.id}>{t.name}</option>
       ))}

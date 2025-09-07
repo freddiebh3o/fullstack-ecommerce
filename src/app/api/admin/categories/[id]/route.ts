@@ -1,69 +1,82 @@
 // src/app/api/admin/categories/[id]/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
-import { tenantDb } from "@/lib/tenant-db";
+import { withAnyTenantPermission, withTenantPermission } from "@/lib/route-guard";
+import { ok, error } from "@/lib/api-response";
+import { audit } from "@/lib/audit";
 
 const bodySchema = z.object({
-  name: z.string().min(2),
-  slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  slug: z.string().min(2, "Slug must be at least 2 characters")
+         .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
 });
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN" && role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+// GET /api/admin/categories/:id  (category.read OR category.write)
+export const GET = withAnyTenantPermission(
+  ["category.read", "category.write"],
+  async (_req, { db, tenantId, params }) => {
+    const { id } = params as { id: string };
+
+    const cat = await db.category.findFirst({
+      where: { id, tenantId },
+      include: { _count: { select: { products: true } } },
+    });
+    if (!cat) return error(404, "NOT_FOUND", "Category not found");
+    return ok(cat);
   }
+);
 
-  const { db } = await tenantDb();
-  const { id } = await params;
+// PATCH /api/admin/categories/:id  (category.write)
+export const PATCH = withTenantPermission(
+  "category.write",
+  async (req, { db, tenantId, params, session }) => {  // <-- add session
+    const { id } = params as { id: string };
 
-  // ensure belongs to this tenant (scoped)
-  const exists = await db.category.findUnique({ where: { id }, select: { id: true } });
-  if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const body = await req.json();
+    const parsed = bodySchema.safeParse(body);
+    if (!parsed.success) {
+      return error(400, "VALIDATION", "Invalid request body", parsed.error.flatten());
+    }
 
-  const parsed = bodySchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json(parsed.error.flatten(), { status: 400 });
+    const exists = await db.category.findFirst({ where: { id, tenantId }, select: { id: true } });
+    if (!exists) return error(404, "NOT_FOUND", "Category not found");
 
-  const name = parsed.data.name.trim();
-  const normalizedSlug = slugify(parsed.data.slug);
+    const normalizedSlug = slugify(parsed.data.slug);
 
-  const conflict = await db.category.findFirst({
-    where: { slug: normalizedSlug, NOT: { id } },
-    select: { id: true },
-  });
-  if (conflict) return NextResponse.json({ error: "Slug already exists in this tenant" }, { status: 409 });
+    const conflict = await db.category.findFirst({
+      where: { tenantId, slug: normalizedSlug, NOT: { id } },
+      select: { id: true },
+    });
+    if (conflict) return error(409, "CONFLICT", "Slug already exists in this tenant");
 
-  const updated = await db.category.update({
-    where: { id },
-    data: { name, slug: normalizedSlug },
-  });
+    const updated = await db.category.update({
+      where: { id },
+      data: { name: parsed.data.name, slug: normalizedSlug },
+    });
 
-  return NextResponse.json(updated, { status: 200 });
-}
+    await audit(db, tenantId, session.user.id, "category.update", { id: updated.id, name: updated.name }); // <-- session here
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN" && role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return ok(updated);
   }
+);
 
-  const { db } = await tenantDb();
-  const { id } = await params;
+// DELETE /api/admin/categories/:id  (category.write)
+export const DELETE = withTenantPermission(
+  "category.write",
+  async (_req, { db, tenantId, params, session }) => { // <-- add session
+    const { id } = params as { id: string };
 
-  // ensure belongs to this tenant
-  const exists = await db.category.findUnique({ where: { id }, select: { id: true } });
-  if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const exists = await db.category.findFirst({ where: { id, tenantId }, select: { id: true } });
+    if (!exists) return error(404, "NOT_FOUND", "Category not found");
 
-  // ensure no products in this tenant
-  const inUse = await db.product.count({ where: { categoryId: id } });
-  if (inUse > 0) return NextResponse.json({ error: "Cannot delete category in use" }, { status: 400 });
+    const inUse = await db.product.count({ where: { tenantId, categoryId: id } });
+    if (inUse > 0) {
+      return error(400, "BAD_REQUEST", "Cannot delete a category that is used by products");
+    }
 
-  await db.category.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
-}
+    await db.category.delete({ where: { id } });
+    await audit(db, tenantId, session.user.id, "category.delete", { id }); // <-- session here
 
+    return ok({ id, deleted: true });
+  }
+);

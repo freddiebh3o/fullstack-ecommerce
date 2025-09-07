@@ -1,18 +1,26 @@
-// src/app/admin/categories/page.tsx
 import Link from "next/link";
 import { db } from "@/lib/db";
 import CategoryTable from "@/components/admin/category-table";
-import { getCurrentTenantId } from "@/lib/tenant";
+import ForbiddenPage from "@/app/403/page";
+import { ensureAnyPagePermission } from "@/lib/page-guard";
+import { can } from "@/lib/permissions";
 
 export default async function AdminCategoriesPage() {
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) return null;
+  // Allow users with either read or write
+  const perm = await ensureAnyPagePermission(["category.read", "category.write"]);
+  if (!perm.allowed) return <ForbiddenPage />;
 
+  const { tenantId } = perm;
+
+  // Fetch data tenant-scoped
   const categories = await db.category.findMany({
     where: { tenantId },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { products: true } } },
   });
+
+  // Check if this user can write (to show/hide "New Category")
+  const mayWrite = await can("category.write", tenantId);
 
   return (
     <div className="space-y-6">
@@ -23,12 +31,15 @@ export default async function AdminCategoriesPage() {
             {categories.length} item{categories.length === 1 ? "" : "s"}
           </p>
         </div>
-        <Link
-          href="/admin/categories/new"
-          className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium hover:bg-accent"
-        >
-          New Category
-        </Link>
+
+        {mayWrite ? (
+          <Link
+            href="/admin/categories/new"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium hover:bg-accent"
+          >
+            New Category
+          </Link>
+        ) : null}
       </div>
 
       <CategoryTable categories={categories} />

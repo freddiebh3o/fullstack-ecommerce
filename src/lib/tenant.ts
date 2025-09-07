@@ -1,36 +1,56 @@
 // src/lib/tenant.ts
+import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 
 /**
- * Resolve the current tenant for server components/pages:
- * 1) JWT session.user.currentTenantId (set by switch route)
- * 2) cookie "x-current-tenant-id" (set by switch route as fallback)
- * 3) FIRST membership for this user (dev-friendly fallback)
+ * Resolve the *valid* current tenant for the logged-in user.
+ * Order:
+ *  1) cookie("tenantId") if it exists *and* the user has a membership there (or is SUPERADMIN)
+ *  2) first membership’s tenant
+ *  3) (SUPERADMIN only) first tenant in system
+ *  4) null
  */
-export async function getCurrentTenantId(): Promise<string | null> {
+export async function getCurrentTenantId() {
   const session = await getServerSession(authOptions);
-  const anyUser = session?.user as any;
+  const userId = session?.user?.id ?? null;
+  const isSuper = (session?.user as any)?.role === "SUPERADMIN";
 
-  console.log("anyUser", anyUser);
+  // 1) cookie
+  const cookieStore = await cookies();
+  const cookieTenantId = cookieStore.get("tenantId")?.value || null;
 
-  if (anyUser?.currentTenantId) return anyUser.currentTenantId;
+  if (cookieTenantId) {
+    if (isSuper) {
+      // superadmin: any tenant is OK if it exists
+      const exists = await db.tenant.findUnique({ where: { id: cookieTenantId }, select: { id: true } });
+      if (exists) return cookieTenantId;
+    } else if (userId) {
+      const hasMembership = await db.membership.findFirst({
+        where: { userId, tenantId: cookieTenantId },
+        select: { id: true },
+      });
+      if (hasMembership) return cookieTenantId;
+    }
+  }
 
-  const jar = await cookies();
-  const cookieTid = jar.get("x-current-tenant-id")?.value;
-  if (cookieTid) return cookieTid;
+  // 2) fallback: first membership
+  if (userId) {
+    const m = await db.membership.findFirst({
+      where: { userId },
+      orderBy: { createdAt: "asc" },
+      select: { tenantId: true },
+    });
+    if (m?.tenantId) return m.tenantId;
+  }
 
-  if (!session?.user?.id) return null;
+  // 3) superadmin fallback: first tenant in system
+  if (isSuper) {
+    const t = await db.tenant.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } });
+    if (t?.id) return t.id;
+  }
 
-  const first = await db.membership.findFirst({
-    where: { userId: session.user.id },
-    select: { tenantId: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  console.log("first", first);
-
-  return first?.tenantId ?? null;
+  // 4) nothing
+  return null;
 }
