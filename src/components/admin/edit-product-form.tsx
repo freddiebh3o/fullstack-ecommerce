@@ -154,6 +154,7 @@ export default function EditProductForm({
                     entityId={id}
                     onUploaded={(url) => form.setValue("imageUrl", url, { shouldValidate: true })}
                     onClear={() => form.setValue("imageUrl", "", { shouldValidate: true })}
+                    debug
                   />
                 </div>
               </FormControl>

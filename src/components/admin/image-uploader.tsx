@@ -13,6 +13,7 @@ type PresignResponse = {
   headers?: Record<string, string>;
   fields?: Record<string, string>;
   publicUrl?: string;
+  key?: string; // ⬅️ include S3 key for debug display
 };
 
 type Props = {
@@ -25,6 +26,7 @@ type Props = {
   className?: string;
   onClear?: () => void;
   label?: string;             // optional label above the zone
+  debug?: boolean;            // ⬅️ show S3 key + status when true
 };
 
 export default function ImageUploader({
@@ -37,12 +39,17 @@ export default function ImageUploader({
   className,
   onClear,
   label = "Image",
+  debug = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null); // local object URL
+
+  // debug state
+  const [lastKey, setLastKey] = useState<string | null>(null);
+  const [lastUrl, setLastUrl] = useState<string | null>(null);
 
   const activePreview = previewUrl || currentUrl || null;
 
@@ -74,6 +81,9 @@ export default function ImageUploader({
 
   async function upload(file: File) {
     setUploading(true);
+    setLastKey(null);
+    setLastUrl(null);
+
     try {
       const presignRes = await fetch("/api/admin/uploads/presign", {
         method: "POST",
@@ -93,6 +103,7 @@ export default function ImageUploader({
       }
 
       const presign: PresignResponse = await presignRes.json();
+      if (presign.key) setLastKey(presign.key);
 
       if (presign.method === "POST" && presign.fields) {
         const fd = new FormData();
@@ -121,6 +132,7 @@ export default function ImageUploader({
         return;
       }
 
+      setLastUrl(finalUrl);
       onUploaded(finalUrl);
     } catch (e: any) {
       setError(e?.message || "Unexpected error during upload.");
@@ -210,6 +222,9 @@ export default function ImageUploader({
               e.stopPropagation();
               resetLocalPreview();
               onClear?.();
+              setLastKey(null);
+              setLastUrl(null);
+              setError(null);
             }}
             disabled={uploading}
             className="rounded-md bg-background/80 backdrop-blur"
@@ -224,10 +239,29 @@ export default function ImageUploader({
             <span className="text-muted-foreground">
               Max {(maxBytes / (1024 * 1024)).toFixed(0)}MB • {accept}
             </span>
-            <span className={cn("truncate", error ? "text-destructive" : "text-muted-foreground")}>
+            <span
+              className={cn("truncate", error ? "text-destructive" : "text-muted-foreground")}
+              aria-live="polite"
+            >
               {error ? error : uploading ? "Uploading…" : activePreview ? "Ready" : "No image"}
             </span>
           </div>
+
+          {/* Debug line (shows tenant-scoped S3 key + final URL) */}
+          {debug && (lastKey || lastUrl) ? (
+            <div className="mt-1 rounded-md bg-background/70 px-2 py-1 text-[10px] leading-tight text-muted-foreground backdrop-blur">
+              {lastKey ? (
+                <div className="truncate" title={lastKey}>
+                  <span className="font-medium">S3 key:</span> {lastKey}
+                </div>
+              ) : null}
+              {lastUrl ? (
+                <div className="truncate" title={lastUrl}>
+                  <span className="font-medium">Public URL:</span> {lastUrl}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
         <input

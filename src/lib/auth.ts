@@ -29,16 +29,29 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }: { token: JWT; user?: User | null }) {
+    async jwt({ token, user }) {
       if (user) token.role = (user as any).role;
+  
+      // set currentTenantId once (first membership or the "default" tenant)
+      if (!token.currentTenantId && token.sub) {
+        const membership = await db.membership.findFirst({
+          where: { userId: token.sub },
+          select: { tenantId: true },
+          orderBy: { createdAt: "asc" },
+        });
+        token.currentTenantId =
+          membership?.tenantId ||
+          (await db.tenant.findFirst({ where: { slug: "default" }, select: { id: true } }))?.id;
+      }
       return token;
     },
-    async session({ session, token }: { session: Session; token: JWT }) {
+    async session({ session, token }) {
       if (session.user) {
-        (session.user as any).role = (token as any).role
-        ;(session.user as any).id = token.sub
+        (session.user as any).role = (token as any).role;
+        (session.user as any).id = token.sub;
       }
-      return session
+      (session as any).currentTenantId = (token as any).currentTenantId;
+      return session;
     },
   },
   pages: { signIn: "/login" },

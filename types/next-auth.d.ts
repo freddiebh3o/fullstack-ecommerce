@@ -1,4 +1,5 @@
 // types/next-auth.d.ts
+import { DefaultUser } from "next-auth";
 import "next-auth";
 import "next-auth/jwt";
 
@@ -8,17 +9,20 @@ declare module "next-auth" {
       id: string;
       email?: string | null;
       name?: string | null;
-      role?: "ADMIN" | "USER";
+      role?: "ADMIN" | "USER" | "SUPERADMIN";
     };
+    currentTenantId?: string;
   }
-  interface User {
-    role: "ADMIN" | "USER";
+
+  interface User extends DefaultUser {
+    role: "ADMIN" | "USER" | "SUPERADMIN";
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    role?: "ADMIN" | "USER";
+    role?: "ADMIN" | "USER" | "SUPERADMIN";
     sub?: string;
+    currentTenantId?: string;
   }
 }

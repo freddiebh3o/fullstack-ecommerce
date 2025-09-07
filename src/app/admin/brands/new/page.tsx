@@ -89,10 +89,8 @@ export default function NewBrandPage() {
           )} />
           <FormField name="logoUrl" control={form.control} render={({ field }) => (
             <FormItem>
-              {/* <FormLabel>Logo</FormLabel> */}
               <FormControl>
                 <div className="flex flex-col gap-2">
-                  {/* <Input placeholder="https://…" {...field} value={field.value ?? ""} /> */}
                   <ImageUploader
                     scope="brands"
                     entityId={`drafts/${draftIdRef.current}`}
@@ -101,6 +99,7 @@ export default function NewBrandPage() {
                     onUploaded={(url) => form.setValue("logoUrl", url, { shouldValidate: true })}
                     onClear={() => form.setValue("logoUrl", "", { shouldValidate: true })}
                     className="max-w-md"   // optional width constraint
+                    debug
                   />
                 </div>
               </FormControl>

@@ -10,13 +10,14 @@ import { Prisma } from "@prisma/client";
 const bodySchema = z.object({
   email: z.string().email(),
   name: z.string().trim().optional(),
-  role: z.enum(["ADMIN", "USER"]),
+  role: z.enum(["ADMIN", "USER", "SUPERADMIN"]).optional().default("USER"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if ((session?.user as any)?.role !== "ADMIN") {
+  const sysRole = (session?.user as any)?.role; 
+  if (sysRole !== "ADMIN" && sysRole !== "SUPERADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

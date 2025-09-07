@@ -2,6 +2,7 @@
 
 This is a learning-focused fullstack e-commerce application built with **Next.js 15**, **Prisma**, and **Postgres**, featuring an **admin panel** with authentication and product management.  
 Media uploads are handled locally via **AWS S3 emulation** (LocalStack in Docker) to practice scalable file storage without any AWS billing risk.
+We’ve recently integrated **multitenancy support with RBAC permissions** so that all CRUD operations are scoped to a tenant, and users can switch between tenants securely.  
 
 ⚠️ **Note:** This project is strictly for practice. There will never be real users or a production deployment.
 
@@ -26,6 +27,110 @@ Media uploads are handled locally via **AWS S3 emulation** (LocalStack in Docker
 - Loading states with NProgress + route-level feedback
 
 ---
+
+## 💸 Hosting & Infrastructure Costs
+
+This project is designed to be cloud-hosted with **Next.js (Vercel or similar), Supabase (Postgres), and S3-compatible storage**. Below is an estimate of ongoing monthly costs at different scales (excluding developer time).
+
+### Frontend + API (Next.js)
+- **Vercel Pro**: $20/user/month (covers SSR, API routes, custom domains, SSL).  
+- Alternative: self-host (AWS EC2 / DigitalOcean Droplet) from $5–$20/month.  
+
+👉 Typical budget: **$20–$50/month**.
+
+### Database (Supabase / Postgres)
+- Supabase Free: 500MB storage, 50k requests.  
+- Supabase Pro: $25/month → 8GB storage, 8GB bandwidth.  
+- Scales with storage and usage:  
+  - 50GB DB → ~$100/month.  
+  - 200GB DB → ~$400/month.  
+
+👉 Typical budget: **$25–$100/month initially**, scaling as tenants grow.
+
+### Storage (S3 or Supabase Storage)
+- Stores product images, logos, documents.  
+- AWS S3 pricing: $0.023/GB stored, $0.09/GB egress.  
+- Example:  
+  - 10k images @ 500KB → 5GB = $0.12/month.  
+  - 100k images → 50GB = $1.15/month.  
+- Bandwidth (downloads by customers) is the main cost driver.  
+
+👉 Typical budget: **$5–$25/month** early on.
+
+### Authentication & Emails
+- NextAuth itself is free.  
+- OAuth providers (Google, Microsoft, etc.): free.  
+- Email delivery (Postmark, SendGrid, etc.): $15–$50/month depending on volume.  
+
+👉 Typical budget: **$0–$30/month**.
+
+###  Database Backups & Snapshots (Supabase)
+
+#### Daily Backups (included)
+- **Pro Plan**: 1 daily backup retained for 7 days.
+- **Team Plan**: Retained for 14 days.
+- **Enterprise Plan**: Retained up to 30 days.
+- No extra cost—part of the base plan.  
+  *(Source: Supabase docs)*
+
+#### Point-in-Time Recovery (PITR) – Optional Add-on
+- Restores to any point in time (second-level precision).
+- **Replaces** daily backups while active.
+- Billed hourly for the duration enabled:
+  - **7-day retention**: ~$100/month  
+  - **14-day retention**: ~$200/month  
+  - **28-day retention**: ~$400/month  
+  *(Example based on full activation for 744-hour month)*
+
+#### Summary Table
+
+| Backup Type                | Included Cost    | Coverage                   | Add-on Cost                        |
+|----------------------------|------------------|----------------------------|------------------------------------|
+| Daily Automated Backups    |                  | 7/14/30-day retention      | None (in plan)                     |
+| PITR Add-on (enabled only) |                  | Second-level granularity   | $100–$400/month based on retention |
+
+## 💰 Total Hosting Cost Overview (Medium–Large Usage)
+
+This section summarizes the expected monthly costs of running this project in production with **Supabase (DB/Auth/Storage)** and **Vercel/Next.js (frontend)**.
+
+### Core Services
+
+| Service          | Plan / Tier            | Est. Monthly Cost | Notes |
+|------------------|------------------------|-------------------|-------|
+| **Supabase Database** | Pro Plan (8GB Postgres, 500K monthly edge function calls, 100GB storage) | $25–$50 | Base subscription |
+| **Supabase Storage**  | Included in Pro (100GB) | Extra: $0.02/GB beyond quota | Product images, documents, tenant assets |
+| **Supabase Auth**     | Included in Pro | First 50k MAUs free, then $0.0035/user | Multi-tenant logins |
+| **Supabase Edge Functions** | Included in Pro | Extra usage billed per request | For custom API logic |
+| **Vercel Hosting**    | Pro Team Plan | $20/user (devs) + bandwidth charges | Covers Next.js SSR/ISR builds, CDN, domains |
+
+### Backup & Recovery
+
+| Backup Type            | Retention | Cost             | Notes |
+|------------------------|-----------|------------------|-------|
+| **Daily Backups**      | 7 days    | Included         | Automatic, no charge |
+| **PITR (optional)**    | 7–28 days | $100–$400/month  | Precise recovery; billed hourly while enabled |
+
+### Estimated Totals
+
+- **Base (no PITR):**  
+  ~$50–$100/month  
+  (Supabase Pro + Vercel Pro + light storage overages)
+
+- **With PITR enabled:**  
+  ~$150–$500/month  
+  (depending on retention period and storage growth)
+
+- **Growth scaling factors:**  
+  - +$0.02/GB storage per tenant (images, docs, backups)  
+  - +$0.0035/authenticated user beyond 50k monthly users  
+  - +Vercel bandwidth (first TB free, then ~$40/TB)  
+
+### Notes
+
+- Costs scale with **number of tenants**, **data stored**, and **traffic**.  
+- For **enterprise use**, expect higher storage + PITR to be mandatory → ~$500–$800/month.  
+- For **startup/small biz**, base Pro tiers on Supabase + Vercel will suffice (<$100/month).  
+
 
 ## Getting Started
 
@@ -61,6 +166,27 @@ npx prisma db seed
 ### 4. Run localStack (S3 emulator)
 ```
 docker compose up -d
+```
+
+### 5. LocalStack S3 Setup
+LocalStack emulates AWS services locally. We use it here to emulate S3 for file uploads
+
+After starting LocalStack with docker:
+```
+docker compuse up -d
+```
+You'll need to create the development bucket once inside the container:
+```
+# Open a shell inside the LocalStack container
+docker exec -it localstack bash
+
+#create the bucket 
+awslocal s3 mb s3://ecom-dev-bucket
+```
+
+That's it -- the bucket ecom-dev-bucket will now be available at:
+```
+http://s3.localhost.localstack.cloud:4566/ecom-dev-bucket
 ```
 
 ### 5. Run the Development server
@@ -215,30 +341,118 @@ npx prisma studio
 - Storage: AWS S3 (emulated by LocalStack)
 - Icons: Lucide-react
 
+### Estimated Costings
+
+
+
+## 🔑 Recap of Recent Integration
+
+- **Multitenancy foundations**  
+  - Added `Tenant`, `Membership`, `Role`, `Permission`, and `PermissionAssignment` models.  
+  - All `Product`, `Category`, `Brand`, `Image` entities are now tenant-scoped.  
+  - Global users (`User`) can belong to multiple tenants through `Membership`.  
+
+- **Role-based access control (RBAC)**  
+  - Each tenant has seeded roles: `OWNER`, `ADMIN`, `EDITOR`, `READONLY`.  
+  - Roles map to fine-grained permissions (`product.read`, `product.write`, etc).  
+  - Safeguards prevent deleting/demoting the last OWNER of a tenant.  
+
+- **Superadmin / Admin distinction**  
+  - Global `SUPERADMIN`: can see/switch into all tenants.  
+  - Global `ADMIN`: can create tenants and manage memberships, but only sees tenants they belong to.  
+  - Global `USER`: needs membership in a tenant to access its admin UI.  
+
+- **Tenant switcher**  
+  - Users can switch tenants via a dropdown (`tenant-switcher.tsx`).  
+  - Switching sets a signed cookie `x-current-tenant-id`, which server routes use to scope queries.  
+
+- **Scoped CRUD**  
+  - All `/api/admin/*` routes now resolve tenant context through a helper (`getApiTenantCtx` / `getCurrentTenantId`).  
+  - Create/read/update/delete operations are fully tenant-isolated.  
+  - Slug uniqueness is enforced per-tenant, not globally.  
+
+- **Seed data**  
+  - Two tenants (`default`, `acme`) are created with roles, memberships, categories, brands, and products.  
+  - Multiple demo users are seeded with different roles per tenant for testing.  
+
+---
+
+## 🧪 Testing tenant intergration Checklist
+
+### Tenant core
+- [ ] Resolve tenant on login → default selected; cookie set.  
+- [ ] Switch tenant (SUPERADMIN) → works across all tenants.  
+- [ ] Switch tenant (non-member) → 403 until membership exists.  
+
+### CRUD isolation
+- [ ] Create product in tenant A → not visible in tenant B.  
+- [ ] Update/delete product in A → does not affect B.  
+- [ ] Same slug allowed across tenants; conflict within same tenant.  
+- [ ] Category/brand resolution scoped per-tenant.  
+
+### Members & roles
+- [ ] Owners/Admins can manage all.  
+- [ ] Editors limited to product read/write.  
+- [ ] Readonly can only view products.  
+- [ ] Last OWNER cannot be demoted/deleted.  
+
+### Tenant creation
+- [ ] POST `/api/admin/tenants` → creates tenant + roles + OWNER membership.  
+- [ ] Duplicate slug → blocked.  
+
+### Tenant switcher
+- [ ] Dropdown shows only accessible tenants.  
+- [ ] Switch persists across navigation + refresh.  
+
+### API hardening
+- [ ] All routes scoped to `{ tenantId }`.  
+- [ ] Cross-tenant ID operations → 404.  
+- [ ] Invalid body → 400 with Zod error.  
+
+### Auth/session
+- [ ] Switch tenant does not log out.  
+- [ ] Removing cookie falls back to first membership or “No tenant selected”.  
+
+### Check for files no longer used and remove them
+
+---
+
+
 ## User Stories (Backlog, grouped by Epic)
 
-### Epic: Multi-Tenancy & Permissions (FOUNDATION)
-#### Sub-Epic A: Tenant Fundamentals
-- [ ] Admin can create a tenant (name, slug).
-- [ ] Admin can switch tenants in the admin header.
-- [ ] Admin can invite a user to a tenant (email invite with temporary password).
-- [ ] Admin can manage tenant members (list, change role, remove).
-- [ ] All admin/API queries are scoped by tenant.
+### Epic: Tenant & Permissions Foundation
+- [x] Add `Tenant`, `Membership`, `Role`, `Permission`, and `PermissionAssignment` models.  
+- [x] Bootstrap roles per tenant (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).  
+- [x] Implement `getCurrentTenantId` helper (session/cookie/membership fallback).  
+- [x] Add tenant switcher UI + API.  
+- [x] Scope all admin CRUD operations to `tenantId`.  
+- [x] Ensure slug uniqueness per-tenant (`@@unique([tenantId, slug])`).  
+- [x] Implement role-based permission checks (`can()` helper).  
+- [x] Add safeguards against deleting/demoting last OWNER.  
+- [x] Seed two tenants with example users, roles, and catalog. 
 
-#### Sub-Epic B: Plans & Feature Flags
-- [ ] Seed plans (`free`, `pro`, `enterprise`) with features (brands, tags, cms, analytics).
-- [ ] Tenant can have a plan + feature overrides.
-- [ ] Admin UI hides modules for disabled features.
-- [ ] API blocks disabled features (403).
-- [ ] Tenant “Plan & Features” screen to view/pretend-upgrade.
+### Epic: Branches/Locations (optional per tenant)
+- [ ] Add `Branch` model linked to tenant.  
+- [ ] Branch feature flag per tenant/plan.  
+- [ ] Products can be branch-specific (optional).  
+- [ ] Orders can select branch for fulfillment.  
+- [ ] Customers can have preferred branch.  
+- [ ] If disabled, tenant behaves as single-branch.
 
-#### Sub-Epic C: Roles & Permissions (RBAC)
+#### Sub-Epic C: Roles & Permissions (RBAC) -> Think this is already done but check this.
 - [ ] Seed permission catalog.
 - [ ] Seed default roles (Owner, Admin, Editor, ReadOnly).
 - [ ] Admin can create custom roles (toggle permissions).
 - [ ] Admin can assign roles to members.
 - [ ] Authorization middleware + `can(permission)` helper everywhere.
 - [ ] Safeguards (last owner cannot be demoted, cannot delete self, etc.).
+
+#### Sub-Epic B: Plans & Feature Flags (Probably not going to do this as every deal will be made over the phone)
+- [ ] Seed plans (`free`, `pro`, `enterprise`) with features (brands, tags, cms, analytics).
+- [ ] Tenant can have a plan + feature overrides.
+- [ ] Admin UI hides modules for disabled features.
+- [ ] API blocks disabled features (403).
+- [ ] Tenant “Plan & Features” screen to view/pretend-upgrade.
 
 #### Sub-Epic D: Tenant Branding & Storefront Identity
 - [ ] Tenant can upload logo, set brand colors, override theme tokens.
@@ -252,12 +466,27 @@ npx prisma studio
 - [ ] Rate-limit sensitive ops per tenant.
 - [ ] Ensure delete flows respect tenant ownership.
 
+### Epic: Customers (B2B accounts)
+- [ ] Admins can create customers with core details (name, contact, billing info).  
+- [ ] Customers can have traits/contracts (price overrides, credit terms, max order size).  
+- [ ] Customers flagged as portal-enabled vs offline-only.  
+- [ ] Portal customers can log in, view pricing, place orders.  
+- [ ] Customers segmented by tags/segments (wholesale, retail, etc).  
+- [ ] Admins can view orders per customer across branches.  
+
+### Epic: Suppliers
+- [ ] Admins can create suppliers (name, contact, product catalog).  
+- [ ] Products linked to suppliers (cost-side relationship).  
+- [ ] Supplier management (min order qty, lead times, cost price).  
+- [ ] Purchase orders raised against suppliers.  
+- [ ] Supplier reporting (spend, stock, performance).  
+
 ### Epic: Catalog Structure
 - [x] Admins can create brands (name, slug, logo, description, website).
   - [x] Brands table with search + pagination
   - [x] Brand create/edit forms with slug auto-gen + URL validation
-  - [x] Logo upload via drag-and-drop with preview
-  - [x] Toast notifications for success/error
+  - [x] Brand logo upload via drag-and-drop with preview
+  - [x] Toast notifications for success/error notifications relating to brands
   - [x] Brand column in product list
 - [ ] Admins can create tags and attach them to products.
 - [ ] Admins can nest categories into subcategories.

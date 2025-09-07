@@ -1,4 +1,6 @@
 // print-tree.mjs
+// node print-tree.mjs . "node_modules,.git,.next,dist" 5
+
 import fs from "fs";
 import path from "path";
 

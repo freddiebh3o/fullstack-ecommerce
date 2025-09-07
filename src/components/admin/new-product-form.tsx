@@ -170,20 +170,17 @@ export default function NewProductForm({
                 name="imageUrl"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Primary Image URL</FormLabel>
                     <FormControl>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          placeholder="https://..."
-                          {...field}
-                          value={field.value ?? ""}   // keep controlled
-                        />
+                      <div className="flex flex-col gap-2">
                         <ImageUploader
                           scope="products"
-                          currentUrl={form.getValues("imageUrl") || undefined}
                           entityId={`drafts/${draftIdRef.current}`} // uploads under products/drafts/<uuid>
+                          label="Primary Image"
+                          currentUrl={form.getValues("imageUrl") || undefined}
                           onUploaded={(url) => form.setValue("imageUrl", url, { shouldValidate: true })}
                           onClear={() => form.setValue("imageUrl", "", { shouldValidate: true })}
+                          className="max-w-md" 
+                          debug
                         />
                       </div>
                     </FormControl>

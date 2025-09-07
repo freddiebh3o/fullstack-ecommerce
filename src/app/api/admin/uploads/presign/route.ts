@@ -7,6 +7,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import crypto from "node:crypto";
+import { getCurrentTenantId } from "@/lib/tenant";
 
 const bodySchema = z.object({
   filename: z.string().min(1),
@@ -18,11 +19,14 @@ const bodySchema = z.object({
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
-  if ((session?.user as any)?.role !== "ADMIN") {
+  const role = (session?.user as any)?.role;
+  if (role !== "ADMIN" && role !== "SUPERADMIN") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Accept both camelCase and snake-ish aliases from the client
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return NextResponse.json({ error: "No tenant" }, { status: 400 });
+
   const raw = await req.json();
   const normalized = {
     filename: raw.filename ?? raw.fileName,
@@ -33,45 +37,36 @@ export async function POST(req: Request) {
   };
 
   const parsed = bodySchema.safeParse(normalized);
-  if (!parsed.success) {
-    return NextResponse.json(parsed.error.flatten(), { status: 400 });
-  }
+  if (!parsed.success) return NextResponse.json(parsed.error.flatten(), { status: 400 });
 
   const { filename, contentType, scope, entityId } = parsed.data;
 
-  // Sanitize file extension
+  // sanitize extension
   const ext = (filename.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const key = `${scope}/${entityId}/${crypto.randomUUID()}.${ext}`;
+  const key = `tenants/${tenantId}/${scope}/${entityId}/${crypto.randomUUID()}.${ext}`;
 
-  const bucket = process.env.S3_BUCKET_NAME!;
+  const bucket =
+    process.env.S3_BUCKET ||
+    process.env.S3_BUCKET_NAME ||
+    "ecom-dev-bucket"; // fallback to keep dev smooth
+
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
     ContentType: contentType,
-    // Public-read works because you've set a permissive bucket policy in LocalStack
     ACL: "public-read",
   });
 
-  // Presigned PUT URL for direct upload
   const url = await getSignedUrl(s3, command, { expiresIn: 60 });
 
-  // Public URL to view the file after upload
-  // Prefer virtual-hosted style for LocalStack: http://s3.localhost.localstack.cloud:4566/<bucket>/<key>
   const publicBase =
     process.env.S3_PUBLIC_BASE ?? "http://s3.localhost.localstack.cloud:4566";
   const publicUrl = `${publicBase}/${bucket}/${key}`
     .replace(/\/{2,}/g, "/")
     .replace(":/", "://");
 
-  // Return the shape expected by the client uploader
   return NextResponse.json(
-    {
-      url,               // presigned upload URL
-      method: "PUT",     // client uses PUT by default
-      headers: {},       // you can add custom headers if needed
-      key,               // (optional) S3 key
-      publicUrl,         // final public URL to store in DB
-    },
+    { url, method: "PUT", headers: {}, key, publicUrl },
     { status: 200 }
   );
 }

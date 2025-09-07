@@ -2,9 +2,14 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import CategoryTable from "@/components/admin/category-table";
+import { getCurrentTenantId } from "@/lib/tenant";
 
 export default async function AdminCategoriesPage() {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return null;
+
   const categories = await db.category.findMany({
+    where: { tenantId },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { products: true } } },
   });

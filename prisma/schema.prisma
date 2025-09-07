@@ -7,67 +7,185 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Category {
-  id        String     @id @default(cuid())
+// --- Existing generator/datasource unchanged ---
+
+enum RoleKey {
+  OWNER
+  ADMIN
+  EDITOR
+  READONLY
+}
+
+model Tenant {
+  id               String            @id @default(cuid())
+  name             String
+  slug             String            @unique
+  planId           String?
+  plan             Plan?             @relation(fields: [planId], references: [id])
+  featureOverrides FeatureOverride[]
+  memberships      Membership[]
+  roles            Role[]
+  products         Product[]
+  categories       Category[]
+  brands           Brand[]
+  images           ProductImage[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model Plan {
+  id        String    @id @default(cuid())
+  key       String    @unique // "free" | "pro" | "enterprise"
   name      String
-  slug      String     @unique
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  
+  features  Feature[] // base features for the plan
+  tenants   Tenant[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Feature {
+  id               String            @id @default(cuid())
+  key              String            @unique
+  name             String
+  plans            Plan[]
+  featureOverrides FeatureOverride[]
+}
+
+model FeatureOverride {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  featureId String
+  feature   Feature @relation(fields: [featureId], references: [id])
+  enabled   Boolean
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  roleId    String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  role      Role     @relation(fields: [roleId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId]) // one membership per tenant per user
+}
+
+model Role {
+  id          String                 @id @default(cuid())
+  tenantId    String? // null => system default role template
+  tenant      Tenant?                @relation(fields: [tenantId], references: [id])
+  key         RoleKey
+  name        String
+  permissions PermissionAssignment[]
+  memberships Membership[]
+
+  @@unique([tenantId, key])
+}
+
+model Permission {
+  id    String                 @id @default(cuid())
+  key   String                 @unique // e.g. "product.read", "product.write", "user.manage", ...
+  name  String
+  roles PermissionAssignment[]
+}
+
+model PermissionAssignment {
+  id           String     @id @default(cuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+}
+
+// ---- CHANGED EXISTING MODELS: add tenantId foreign keys ----
+
+model Category {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  name      String
+  slug      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   products  Product[]
+
+  @@unique([tenantId, slug])
 }
 
 model Brand {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
   name        String
-  slug        String    @unique
+  slug        String
   description String?
   websiteUrl  String?
   logoUrl     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   products    Product[]
+
+  @@unique([tenantId, slug])
 }
 
 model Product {
-  id          String          @id @default(cuid())
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+
   name        String
-  slug        String          @unique
+  slug        String
   description String?
-  priceCents  Int             // store money as integer cents
-  currency    String          @default("GBP")
-  stock       Int             @default(0)
+  priceCents  Int
+  currency    String   @default("GBP")
+  stock       Int      @default(0)
   categoryId  String?
-  category    Category?       @relation(fields: [categoryId], references: [id])
+  category    Category? @relation(fields: [categoryId], references: [id])
   brandId     String?
-  brand       Brand?          @relation(fields: [brandId], references: [id])
+  brand       Brand?    @relation(fields: [brandId], references: [id])
   images      ProductImage[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, slug])
 }
 
 model ProductImage {
-  id        String  @id @default(cuid())
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
   url       String
   alt       String?
-  sortOrder Int     @default(0)
+  sortOrder Int      @default(0)
   productId String
-  product   Product @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
   createdAt DateTime @default(now())
 }
 
-enum Role {
+enum SystemRole {
   USER
   ADMIN
+  SUPERADMIN
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String       @id @default(cuid())
+  email        String       @unique
   name         String?
   passwordHash String
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  role         SystemRole   @default(USER) // system role (legacy; still used to gate /admin)
+  memberships  Membership[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 }

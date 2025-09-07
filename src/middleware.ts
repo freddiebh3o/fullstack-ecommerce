@@ -1,28 +1,40 @@
-// /middleware.ts
-import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+/**
+ * Middleware strategy:
+ * - Gate /admin to *authenticated* users (any system role).
+ * - Do NOT enforce RBAC here (Edge middleware can't hit the DB reliably).
+ * - RBAC & tenant scoping are enforced in server components and API routes via `can()` + tenant checks.
+ */
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (!pathname.startsWith("/admin")) return NextResponse.next();
 
-  // Read JWT from cookies using the same secret
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  // Only guard the admin app (leave public & auth endpoints alone)
+  if (!pathname.startsWith("/admin")) {
+    return NextResponse.next();
+  }
 
-  // Not logged in → go to /login and come back afterward
+  // Read the NextAuth JWT at the edge
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+
+  // Not authenticated → send to login
   if (!token) {
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", req.url);
-    return NextResponse.redirect(loginUrl);
+    const url = req.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("from", pathname);
+    return NextResponse.redirect(url);
   }
 
-  // Logged in but not admin → show 403 page
-  if ((token as any)?.role !== "ADMIN") {
-    return NextResponse.rewrite(new URL("/403", req.url));
-  }
-
+  // Authenticated → allow. (RBAC/tenant checks happen server-side & in API routes)
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/admin/:path*"] };
+// Match the admin app only
+export const config = {
+  matcher: ["/admin/:path*"],
+};

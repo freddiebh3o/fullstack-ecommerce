@@ -81,6 +81,7 @@ export default function EditBrandForm({ id, initial }: { id: string; initial: Fo
                   onUploaded={(url) => form.setValue("logoUrl", url, { shouldValidate: true })}
                   onClear={() => form.setValue("logoUrl", "", { shouldValidate: true })}
                   className="max-w-md"   // optional width constraint
+                  debug
                 />
               </div>
             </FormControl>

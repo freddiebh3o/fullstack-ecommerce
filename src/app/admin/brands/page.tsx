@@ -5,12 +5,16 @@ import BrandTable from "@/components/admin/brand-table";
 import Pagination from "@/components/ui/pagination";
 import BrandSearch from "@/components/admin/brand-search";
 import { Prisma } from "@prisma/client";
+import { getCurrentTenantId } from "@/lib/tenant";
 
 export default async function AdminBrandsPage({
   searchParams,
 }: {
   searchParams?: Promise<{ q?: string; page?: string }>;
 }) {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return null;
+
   const { q = "", page = "1" } = (await searchParams) || {};
   const pageSize = 10;
   const pageNum = Math.max(parseInt(page || "1", 10) || 1, 1);
@@ -26,7 +30,7 @@ export default async function AdminBrandsPage({
 
   const total = await db.brand.count({ where });
   const brands = await db.brand.findMany({
-    where,
+    where: { tenantId },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { products: true } } },
     take: pageSize,

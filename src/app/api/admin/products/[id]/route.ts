@@ -1,9 +1,7 @@
 // src/app/api/admin/products/[id]/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { z } from "zod";
+import { getApiTenantCtx } from "@/lib/api-ctx";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 
@@ -18,84 +16,100 @@ const bodySchema = z.object({
   brandSlug: z.string().optional().or(z.literal("")),
 });
 
+// DELETE /api/admin/products/:id
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const ctx = await getApiTenantCtx();
+  if ("error" in ctx) return ctx.error;
+  const { db, tenantId } = ctx;
 
-  const resolved = await params; // 👈 await the params
-  const parsed = paramsSchema.safeParse(resolved);
-  if (!parsed.success) {
+  const { id } = await params;
+  const parsedParams = paramsSchema.safeParse({ id });
+  if (!parsedParams.success) {
     return NextResponse.json({ error: "Invalid id" }, { status: 400 });
   }
 
-  const { id } = parsed.data;
+  // Ensure item exists in this tenant
+  const exists = await db.product.findFirst({
+    where: { id, tenantId },
+    select: { id: true },
+  });
+  if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  try {
-    await db.$transaction([
-      db.productImage.deleteMany({ where: { productId: id } }),
-      db.product.delete({ where: { id } }),
-    ]);
-  } catch (e: any) {
-    if (e?.code === "P2025") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
-    }
-    throw e;
-  }
+  await db.$transaction([
+    db.productImage.deleteMany({ where: { productId: id, tenantId } }),
+    // scoped delete for belt-and-braces safety
+    db.product.deleteMany({ where: { id, tenantId } }),
+  ]);
 
   return NextResponse.json({ ok: true });
 }
 
+// PATCH /api/admin/products/:id
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const ctx = await getApiTenantCtx();
+  if ("error" in ctx) return ctx.error;
+  const { db, tenantId } = ctx;
 
   const { id } = await params;
-  const json = await req.json();
-  const parsed = bodySchema.safeParse(json);
+  const parsedParams = paramsSchema.safeParse({ id });
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+  }
+
+  const parsed = bodySchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json(parsed.error.flatten(), { status: 400 });
   }
   const data = parsed.data;
 
-  // Ensure slug is unique (exclude current product)
+  // Ensure target exists in this tenant
+  const target = await db.product.findFirst({
+    where: { id, tenantId },
+    include: { images: true },
+  });
+  if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Slug collision within THIS tenant (excluding current)
   const slugCollision = await db.product.findFirst({
-    where: { slug: data.slug, NOT: { id } },
+    where: { tenantId, slug: data.slug, NOT: { id } },
     select: { id: true },
   });
   if (slugCollision) {
-    return NextResponse.json({ error: "Slug already in use" }, { status: 409 });
+    return NextResponse.json(
+      { error: "Slug already in use in this tenant" },
+      { status: 409 }
+    );
   }
 
-  // Resolve category
+  // Resolve category/brand within THIS tenant
   let categoryId: string | null = null;
   if (data.categorySlug) {
-    const cat = await db.category.findUnique({ where: { slug: data.categorySlug } });
+    const cat = await db.category.findFirst({
+      where: { tenantId, slug: data.categorySlug },
+      select: { id: true },
+    });
     if (!cat) return NextResponse.json({ error: "Category not found" }, { status: 400 });
     categoryId = cat.id;
   }
 
   let brandId: string | null = null;
   if (data.brandSlug) {
-    const b = await db.brand.findUnique({ where: { slug: data.brandSlug } });
+    const b = await db.brand.findFirst({
+      where: { tenantId, slug: data.brandSlug },
+      select: { id: true },
+    });
     if (!b) return NextResponse.json({ error: "Brand not found" }, { status: 400 });
     brandId = b.id;
   }
 
-  // Update product
   const updated = await db.product.update({
-    where: { id },
+    where: { id }, // id is unique; we've already verified tenant ownership
     data: {
       name: data.name,
       slug: data.slug,
@@ -108,12 +122,11 @@ export async function PATCH(
     include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
   });
 
-  // Replace or set primary image if provided
+  // Primary image handling (tenant-scoped)
   if (typeof data.imageUrl === "string") {
-    const primary = updated.images.sort((a, b) => a.sortOrder - b.sortOrder)[0];
+    const primary = updated.images.slice().sort((a, b) => a.sortOrder - b.sortOrder)[0];
     if (data.imageUrl === "") {
-      // Clear images if blank string sent
-      await db.productImage.deleteMany({ where: { productId: id } });
+      await db.productImage.deleteMany({ where: { productId: id, tenantId } });
     } else if (primary) {
       await db.productImage.update({
         where: { id: primary.id },
@@ -121,14 +134,14 @@ export async function PATCH(
       });
     } else {
       await db.productImage.create({
-        data: { productId: id, url: data.imageUrl, alt: updated.name, sortOrder: 0 },
+        data: { tenantId, productId: id, url: data.imageUrl, alt: updated.name, sortOrder: 0 },
       });
     }
   }
 
-  const result = await db.product.findUnique({
-    where: { id },
-    include: { images: { orderBy: { sortOrder: "asc" } }, category: true },
+  const result = await db.product.findFirst({
+    where: { id, tenantId },
+    include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
   });
 
   return NextResponse.json(result, { status: 200 });

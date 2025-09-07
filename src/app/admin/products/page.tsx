@@ -2,15 +2,22 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import ProductTable from "@/components/admin/product-table";
+import { getCurrentTenantId } from "@/lib/tenant";
 
 export default async function AdminProductsListPage() {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) {
+    return <div className="text-red-600">No tenant selected.</div>;
+  }
+
   const products = await db.product.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: "desc" },
     include: {
       category: true,
       brand: true,
       images: { orderBy: { sortOrder: "asc" } },
     },
-    orderBy: { createdAt: "desc" },
   });
 
   return (
