@@ -87,10 +87,10 @@ async function main() {
     upsertPerm("product.read",   "Read products"),
     upsertPerm("product.write",  "Create/update/delete products"), // 2
     upsertPerm("brand.write",    "Create/update/delete brands"),   // 3
+    upsertPerm("brand.read",     "Read brands"),
     upsertPerm("category.write", "Create/update/delete categories"),
     upsertPerm("member.manage",  "Manage tenant members"),
     upsertPerm("category.read",  "Read categories"),
-    upsertPerm("brand.read",     "Read brands"),
     upsertPerm("member.read",    "Read members"),
   ]);
 

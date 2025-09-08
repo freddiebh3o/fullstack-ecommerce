@@ -8,3 +8,9 @@ export async function canWriteCategory() {
   if (!tenantId) return false;
   return can("category.write", tenantId);
 }
+
+export async function canWriteBrand() {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return false;
+  return can("brand.write", tenantId);
+}

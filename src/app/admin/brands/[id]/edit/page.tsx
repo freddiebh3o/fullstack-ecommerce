@@ -1,10 +1,20 @@
+// src/app/admin/brands/[id]/edit/page.tsx
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
+import ForbiddenPage from "@/app/403/page";
+import { ensurePagePermission } from "@/lib/page-guard";
 import EditBrandForm from "@/components/admin/edit-brand-form";
 
 export default async function EditBrandPage({ params }: { params: Promise<{ id: string }> }) {
+  const perm = await ensurePagePermission("brand.write");
+  if (!perm.allowed) return <ForbiddenPage />;
+
+  const { tenantId } = perm;
   const { id } = await params;
-  const brand = await db.brand.findUnique({ where: { id } });
+
+  const brand = await db.brand.findFirst({
+    where: { id, tenantId },
+  });
   if (!brand) notFound();
 
   return (

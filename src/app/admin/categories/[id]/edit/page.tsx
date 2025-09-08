@@ -5,13 +5,13 @@ import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/page-guard";
 import EditCategoryForm from "@/components/admin/edit-category-form";
 
-export default async function EditCategoryPage({ params }: { params: { id: string } }) {
+export default async function EditCategoryPage({ params }: { params: Promise<{ id: string }> }) {
   // Editing requires write
   const perm = await ensurePagePermission("category.write");
   if (!perm.allowed) return <ForbiddenPage />;
 
   const { tenantId } = perm;
-  const { id } = params;
+  const { id } = await params;
 
   const cat = await db.category.findFirst({
     where: { id, tenantId },

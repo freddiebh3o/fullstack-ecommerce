@@ -1,77 +1,92 @@
 // src/app/api/admin/brands/[id]/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 import { slugify } from "@/lib/slug";
-import { tenantDb } from "@/lib/tenant-db";
+import { withAnyTenantPermission, withTenantPermission } from "@/lib/route-guard";
+import { ok, error } from "@/lib/api-response";
+import { audit } from "@/lib/audit";
 
 const bodySchema = z.object({
-  name: z.string().min(2),
-  slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  slug: z.string().min(2, "Slug must be at least 2 characters")
+         .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
   description: z.string().optional(),
-  websiteUrl: z.string().url().optional().or(z.literal("")),
-  logoUrl: z.string().url().optional().or(z.literal("")),
+  websiteUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
+  logoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
 });
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN" && role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+// GET /api/admin/brands/:id  (brand.read OR brand.write)
+export const GET = withAnyTenantPermission(
+  ["brand.read", "brand.write"],
+  async (_req, { db, tenantId, params }) => {
+    const { id } = params as { id: string };
+
+    const brand = await db.brand.findFirst({
+      where: { id, tenantId },
+      include: { _count: { select: { products: true } } },
+    });
+    if (!brand) return error(404, "NOT_FOUND", "Brand not found");
+    return ok(brand);
   }
+);
 
-  const { db } = await tenantDb();
-  const { id } = await params;
+// PATCH /api/admin/brands/:id  (brand.write)
+export const PATCH = withTenantPermission(
+  "brand.write",
+  async (req, { db, tenantId, params, session }) => {
+    const { id } = params as { id: string };
 
-  // ensure brand belongs to tenant (scoped)
-  const exists = await db.brand.findUnique({ where: { id }, select: { id: true } });
-  if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const exists = await db.brand.findFirst({ where: { id, tenantId }, select: { id: true } });
+    if (!exists) return error(404, "NOT_FOUND", "Brand not found");
 
-  const parsed = bodySchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json(parsed.error.flatten(), { status: 400 });
+    const parsed = bodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return error(400, "VALIDATION", "Invalid request body", parsed.error.flatten());
+    }
 
-  const data = parsed.data;
-  const normalizedSlug = slugify(data.slug);
+    const data = parsed.data;
+    const normalizedSlug = slugify(data.slug);
 
-  const conflict = await db.brand.findFirst({
-    where: { slug: normalizedSlug, NOT: { id } },
-    select: { id: true },
-  });
-  if (conflict) return NextResponse.json({ error: "Slug already exists in this tenant" }, { status: 409 });
+    // per-tenant slug uniqueness excluding self
+    const conflict = await db.brand.findFirst({
+      where: { tenantId, slug: normalizedSlug, NOT: { id } },
+      select: { id: true },
+    });
+    if (conflict) return error(409, "CONFLICT", "Slug already exists in this tenant");
 
-  const updated = await db.brand.update({
-    where: { id },
-    data: {
-      name: data.name.trim(),
-      slug: normalizedSlug,
-      description: data.description || null,
-      websiteUrl: data.websiteUrl || null,
-      logoUrl: data.logoUrl || null,
-    },
-  });
+    const updated = await db.brand.update({
+      where: { id },
+      data: {
+        name: data.name.trim(),
+        slug: normalizedSlug,
+        description: data.description?.trim() || null,
+        websiteUrl: data.websiteUrl?.trim() || null,
+        logoUrl: data.logoUrl?.trim() || null,
+      },
+    });
 
-  return NextResponse.json(updated);
-}
+    await audit(db, tenantId, session.user.id, "brand.update", { id: updated.id, name: updated.name });
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
-  if (role !== "ADMIN" && role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return ok(updated);
   }
+);
 
-  const { db } = await tenantDb();
-  const { id } = await params;
+// DELETE /api/admin/brands/:id  (brand.write)
+export const DELETE = withTenantPermission(
+  "brand.write",
+  async (_req, { db, tenantId, params, session }) => {
+    const { id } = params as { id: string };
 
-  // ensure brand belongs to tenant
-  const exists = await db.brand.findUnique({ where: { id }, select: { id: true } });
-  if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const exists = await db.brand.findFirst({ where: { id, tenantId }, select: { id: true } });
+    if (!exists) return error(404, "NOT_FOUND", "Brand not found");
 
-  // block delete if in use within this tenant
-  const count = await db.product.count({ where: { brandId: id } });
-  if (count > 0) return NextResponse.json({ error: "Cannot delete brand in use" }, { status: 400 });
+    const inUse = await db.product.count({ where: { tenantId, brandId: id } });
+    if (inUse > 0) {
+      return error(400, "BAD_REQUEST", "Cannot delete a brand that is used by products");
+    }
 
-  await db.brand.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
-}
+    await db.brand.delete({ where: { id } });
+    await audit(db, tenantId, session.user.id, "brand.delete", { id });
+
+    return ok({ id, deleted: true });
+  }
+);

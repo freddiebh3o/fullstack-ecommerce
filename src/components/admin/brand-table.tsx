@@ -1,8 +1,11 @@
+// src/components/admin/brand-table.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useToast } from "@/components/ui/toast-provider";
+import PermissionGate from "@/components/auth/PermissionGate";
+import { canWriteBrand } from "@/app/actions/perm";
 
 type Row = {
   id: string;
@@ -23,8 +26,14 @@ export default function BrandTable({ brands }: { brands: Row[] }) {
     setBusyId(b.id);
     try {
       const res = await fetch(`/api/admin/brands/${b.id}`, { method: "DELETE" });
+      let msg = "Failed to delete brand.";
+      try {
+        const body = await res.json();
+        if (body?.error?.message) msg = body.error.message;
+      } catch {
+        try { msg = await res.text(); } catch {}
+      }
       if (!res.ok) {
-        const msg = await res.text();
         toast({ title: "Delete failed", message: msg, variant: "destructive" });
         return;
       }
@@ -52,11 +61,7 @@ export default function BrandTable({ brands }: { brands: Row[] }) {
               <td className="px-4 py-3">
                 <div className="font-medium flex items-center gap-2">
                   {b.logoUrl ? (
-                    <img
-                      src={b.logoUrl}
-                      alt=""
-                      className="h-6 w-6 rounded object-cover"
-                    />
+                    <img src={b.logoUrl} alt="" className="h-6 w-6 rounded object-cover" />
                   ) : null}
                   {b.name}
                 </div>
@@ -64,19 +69,28 @@ export default function BrandTable({ brands }: { brands: Row[] }) {
               <td className="px-4 py-3 text-muted-foreground">{b.slug}</td>
               <td className="px-4 py-3">{b._count.products}</td>
               <td className="px-4 py-3">
-                <a
-                  href={`/admin/brands/${b.id}/edit`}
-                  className="underline hover:no-underline mr-3"
-                >
-                  Edit
-                </a>
-                <button
-                  onClick={() => handleDelete(b)}
-                  disabled={busyId === b.id || isPending}
-                  className="text-destructive underline hover:no-underline disabled:opacity-50"
-                >
-                  {busyId === b.id ? "Deleting..." : "Delete"}
-                </button>
+                <PermissionGate check={canWriteBrand}>
+                  {(allowed) => (
+                    <div className="inline-flex items-center gap-2">
+                      <a
+                        href={allowed ? `/admin/brands/${b.id}/edit` : "#"}
+                        className={`underline hover:no-underline ${allowed ? "" : "pointer-events-none opacity-40"}`}
+                        aria-disabled={!allowed}
+                        title={allowed ? "Edit" : "You don’t have permission to edit"}
+                      >
+                        Edit
+                      </a>
+                      <button
+                        onClick={() => allowed && handleDelete(b)}
+                        disabled={!allowed || busyId === b.id || isPending}
+                        className={`text-destructive underline hover:no-underline disabled:opacity-50 ${allowed ? "" : "cursor-not-allowed"}`}
+                        title={allowed ? "Delete" : "You don’t have permission to delete"}
+                      >
+                        {busyId === b.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  )}
+                </PermissionGate>
               </td>
             </tr>
           ))}

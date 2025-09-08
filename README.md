@@ -18,13 +18,19 @@ We’ve recently integrated **multitenancy support with RBAC permissions** so th
   - Delete product  
 - Category management  
   - List, create, edit, delete  
-- User management  
-  - List users (admin/customer)  
-  - Edit roles, reset password, delete users (with safeguards)
+- **Brand management**  
+  - List, create, edit, delete  
+  - Brand logos with image upload  
+  - Search + pagination support (server + UI ready)  
+- User management *(Admin/Superadmin only)*  
+  - Visible only to global Admin/Superadmin roles (internal company/developer accounts)  
+  - List users across tenants  
+  - Edit roles, reset password, delete users (with safeguards)  
 - File uploads via S3 (LocalStack) — e.g. product images
 - Database powered by **Prisma ORM + Postgres**
 - UI with **Tailwind CSS** + **shadcn/ui** components
 - Loading states with NProgress + route-level feedback
+
 
 ---
 
@@ -317,6 +323,7 @@ npx prisma studio
 |   |   |   +---edit-user-form.tsx
 |   |   |   +---image-uploader.tsx
 |   |   |   +---member-table.tsx
+|   |   |   +---new-brand-form.tsx
 |   |   |   +---new-category-form.tsx
 |   |   |   +---new-member-form.tsx
 |   |   |   +---new-product-form.tsx
@@ -402,7 +409,7 @@ npx prisma studio
 
 - **Role-based access control (RBAC)**  
   - Each tenant has seeded roles: `OWNER`, `ADMIN`, `EDITOR`, `READONLY`.  
-  - Roles map to fine-grained permissions (`product.read`, `product.write`, etc).  
+  - Roles map to fine-grained permissions (`product.read`, `product.write`, `brand.read`, `brand.write`, etc).  
   - Safeguards prevent deleting/demoting the last OWNER of a tenant.  
 
 - **Superadmin / Admin distinction**  
@@ -419,9 +426,24 @@ npx prisma studio
   - Create/read/update/delete operations are fully tenant-isolated.  
   - Slug uniqueness is enforced per-tenant, not globally.  
 
+- **Categories & Brands tenant integration**  
+  - Categories and Brands now fully respect tenant scoping and permissions.  
+  - API routes guarded with `withTenantPermission` / `withAnyTenantPermission`.  
+  - Server pages guarded with `ensurePagePermission` / `ensureAnyPagePermission`.  
+  - Client-side actions gated via `PermissionGate` using `canWriteCategory` / `canWriteBrand`.  
+  - Audit logs capture create/update/delete actions with `{ tenantId, userId }`.  
+
 - **Seed data**  
   - Two tenants (`default`, `acme`) are created with roles, memberships, categories, brands, and products.  
   - Multiple demo users are seeded with different roles per tenant for testing.  
+
+---
+
+### 🚧 Still to Do (Tenant Integration)
+- **Dashboard** → ensure metrics/data are scoped by current tenant.  
+- **Products** → apply the same tenant + permission guards as Categories/Brands.  
+- **Members** → tenant-specific CRUD with role assignment + safeguards.  
+- **Users tab** → restricted to Admin/Superadmin only (global view across tenants). Normal tenant users will never see this option.  
 
 ---
 
@@ -530,15 +552,19 @@ npx prisma studio
 - [ ] Supplier reporting (spend, stock, performance).  
 
 ### Epic: Catalog Structure
-- [x] Admins can create brands (name, slug, logo, description, website).
-  - [x] Brands table with search + pagination
-  - [x] Brand create/edit forms with slug auto-gen + URL validation
-  - [x] Brand logo upload via drag-and-drop with preview
-  - [x] Toast notifications for success/error notifications relating to brands
-  - [x] Brand column in product list
-- [ ] Admins can create tags and attach them to products.
-- [ ] Admins can nest categories into subcategories.
-- [ ] Admins can set category banner and blurb for storefront.
+- [x] Admins can create brands (name, slug, logo, description, website).  
+  - [x] Brands table with search + pagination  
+  - [x] Brand create/edit forms with slug auto-gen + URL validation  
+  - [x] Brand logo upload via drag-and-drop with preview  
+  - [x] Toast notifications for success/error notifications relating to brands  
+  - [x] Brand column in product list  
+- [x] Admins can create categories (name, slug).  
+  - [x] Categories table with search + pagination  
+  - [x] Category create/edit forms with slug auto-gen  
+  - [x] Category delete safeguards when in use  
+- [ ] Admins can create tags and attach them to products.  
+- [ ] Admins can nest categories into subcategories.  
+- [ ] Admins can set category banner and blurb for storefront.  
 
 ### Epic: Product Media & Details
 - [ ] Admins can upload multiple images for a product, reorder them, and set alt text.

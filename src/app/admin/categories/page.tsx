@@ -1,3 +1,4 @@
+// src/app/admin/categories/page.tsx
 import Link from "next/link";
 import { db } from "@/lib/db";
 import CategoryTable from "@/components/admin/category-table";

@@ -1,3 +1,4 @@
+// src/components/admin/brand-search.tsx
 "use client";
 
 import { useMemo, useRef, useState } from "react";
