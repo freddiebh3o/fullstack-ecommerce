@@ -4,6 +4,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast-provider";
+import PermissionGate from "@/components/auth/PermissionGate";
+import { canWriteProduct } from "@/app/actions/perm";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -40,11 +42,24 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
     setBusyId(id);
     try {
       const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+
+      let msg = "Failed to delete product.";
+      try {
+        const body = await res.json();
+        if (body?.error?.message) msg = body.error.message;
+      } catch {
+        try {
+          msg = await res.text();
+        } catch {
+          // ignore
+        }
+      }
+
       if (!res.ok) {
-        const msg = await res.text();
         toast({ title: "Delete failed", message: msg, variant: "destructive" });
         return;
       }
+
       startTransition(() => router.refresh());
       toast({ message: "Product deleted" });
     } finally {
@@ -79,23 +94,36 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
               <td className="px-4 py-3">{p.stock ?? 0}</td>
               <td className="px-4 py-3">{DATE_FMT.format(new Date(p.createdAt))}</td>
               <td className="px-4 py-3 text-right">
-                <a href={`/admin/products/${p.id}/edit`} className="mr-2 underline hover:no-underline">
-                  Edit
-                </a>
-                <button
-                  onClick={() => handleDelete(p.id, p.name)}
-                  disabled={busyId === p.id || isPending}
-                  className="text-destructive underline hover:no-underline disabled:opacity-50"
-                >
-                  {busyId === p.id ? "Deleting..." : "Delete"}
-                </button>
+                <PermissionGate check={canWriteProduct}>
+                  {(allowed) => (
+                    <div className="inline-flex items-center gap-2">
+                      <a
+                        href={allowed ? `/admin/products/${p.id}/edit` : "#"}
+                        className={`underline hover:no-underline ${allowed ? "" : "pointer-events-none opacity-40"}`}
+                        aria-disabled={!allowed}
+                        title={allowed ? "Edit" : "You don’t have permission to edit"}
+                      >
+                        Edit
+                      </a>
+                      <button
+                        onClick={() => allowed && handleDelete(p.id, p.name)}
+                        disabled={!allowed || busyId === p.id || isPending}
+                        className={`text-destructive underline hover:no-underline disabled:opacity-50 ${allowed ? "" : "cursor-not-allowed"}`}
+                        title={allowed ? "Delete" : "You don’t have permission to delete"}
+                      >
+                        {busyId === p.id ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  )}
+                </PermissionGate>
               </td>
             </tr>
           ))}
 
           {products.length === 0 && (
             <tr>
-              <td className="px-4 py-10 text-center text-muted-foreground" colSpan={6}>
+              {/* 7 columns total (including Actions) */}
+              <td className="px-4 py-10 text-center text-muted-foreground" colSpan={7}>
                 No products yet.
               </td>
             </tr>

@@ -1,13 +1,15 @@
 // src/app/api/admin/products/[id]/route.ts
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getApiTenantCtx } from "@/lib/api-ctx";
+import { slugify } from "@/lib/slug";
+import { withAnyTenantPermission, withTenantPermission } from "@/lib/route-guard";
+import { ok, error } from "@/lib/api-response";
+import { audit } from "@/lib/audit";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 
 const bodySchema = z.object({
-  name: z.string().min(2),
-  slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  slug: z.string().min(2).regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
   priceCents: z.number().int().nonnegative(),
   currency: z.string().min(1),
   description: z.string().optional(),
@@ -16,133 +18,130 @@ const bodySchema = z.object({
   brandSlug: z.string().optional().or(z.literal("")),
 });
 
-// DELETE /api/admin/products/:id
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const ctx = await getApiTenantCtx();
-  if ("error" in ctx) return ctx.error;
-  const { db, tenantId } = ctx;
+// GET /api/admin/products/:id  (product.read OR product.write)
+export const GET = withAnyTenantPermission(
+  ["product.read", "product.write"],
+  async (_req, { db, tenantId, params }) => {
+    const { id } = params as { id: string };
 
-  const { id } = await params;
-  const parsedParams = paramsSchema.safeParse({ id });
-  if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-
-  // Ensure item exists in this tenant
-  const exists = await db.product.findFirst({
-    where: { id, tenantId },
-    select: { id: true },
-  });
-  if (!exists) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  await db.$transaction([
-    db.productImage.deleteMany({ where: { productId: id, tenantId } }),
-    // scoped delete for belt-and-braces safety
-    db.product.deleteMany({ where: { id, tenantId } }),
-  ]);
-
-  return NextResponse.json({ ok: true });
-}
-
-// PATCH /api/admin/products/:id
-export async function PATCH(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const ctx = await getApiTenantCtx();
-  if ("error" in ctx) return ctx.error;
-  const { db, tenantId } = ctx;
-
-  const { id } = await params;
-  const parsedParams = paramsSchema.safeParse({ id });
-  if (!parsedParams.success) {
-    return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  }
-
-  const parsed = bodySchema.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json(parsed.error.flatten(), { status: 400 });
-  }
-  const data = parsed.data;
-
-  // Ensure target exists in this tenant
-  const target = await db.product.findFirst({
-    where: { id, tenantId },
-    include: { images: true },
-  });
-  if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  // Slug collision within THIS tenant (excluding current)
-  const slugCollision = await db.product.findFirst({
-    where: { tenantId, slug: data.slug, NOT: { id } },
-    select: { id: true },
-  });
-  if (slugCollision) {
-    return NextResponse.json(
-      { error: "Slug already in use in this tenant" },
-      { status: 409 }
-    );
-  }
-
-  // Resolve category/brand within THIS tenant
-  let categoryId: string | null = null;
-  if (data.categorySlug) {
-    const cat = await db.category.findFirst({
-      where: { tenantId, slug: data.categorySlug },
-      select: { id: true },
+    const product = await db.product.findFirst({
+      where: { id, tenantId },
+      include: {
+        images: { orderBy: { sortOrder: "asc" } },
+        category: { select: { name: true, slug: true } },
+        brand: { select: { name: true, slug: true } },
+      },
     });
-    if (!cat) return NextResponse.json({ error: "Category not found" }, { status: 400 });
-    categoryId = cat.id;
+    if (!product) return error(404, "NOT_FOUND", "Product not found");
+    return ok(product);
   }
+);
 
-  let brandId: string | null = null;
-  if (data.brandSlug) {
-    const b = await db.brand.findFirst({
-      where: { tenantId, slug: data.brandSlug },
-      select: { id: true },
+// PATCH /api/admin/products/:id  (product.write)
+export const PATCH = withTenantPermission(
+  "product.write",
+  async (req, { db, tenantId, params, session }) => {
+    const { id } = params as { id: string };
+    const parsedParams = paramsSchema.safeParse({ id });
+    if (!parsedParams.success) return error(400, "BAD_REQUEST", "Invalid id");
+
+    const target = await db.product.findFirst({
+      where: { id, tenantId },
+      include: { images: true },
     });
-    if (!b) return NextResponse.json({ error: "Brand not found" }, { status: 400 });
-    brandId = b.id;
-  }
+    if (!target) return error(404, "NOT_FOUND", "Product not found");
 
-  const updated = await db.product.update({
-    where: { id }, // id is unique; we've already verified tenant ownership
-    data: {
-      name: data.name,
-      slug: data.slug,
-      priceCents: data.priceCents,
-      currency: data.currency,
-      description: data.description || null,
-      categoryId,
-      brandId,
-    },
-    include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
-  });
-
-  // Primary image handling (tenant-scoped)
-  if (typeof data.imageUrl === "string") {
-    const primary = updated.images.slice().sort((a, b) => a.sortOrder - b.sortOrder)[0];
-    if (data.imageUrl === "") {
-      await db.productImage.deleteMany({ where: { productId: id, tenantId } });
-    } else if (primary) {
-      await db.productImage.update({
-        where: { id: primary.id },
-        data: { url: data.imageUrl, alt: updated.name, sortOrder: 0 },
-      });
-    } else {
-      await db.productImage.create({
-        data: { tenantId, productId: id, url: data.imageUrl, alt: updated.name, sortOrder: 0 },
-      });
+    const parsed = bodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return error(400, "VALIDATION", "Invalid request body", parsed.error.flatten());
     }
+    const data = parsed.data;
+
+    const normalizedSlug = slugify(data.slug);
+
+    // Slug collision within THIS tenant (excluding current)
+    const slugCollision = await db.product.findFirst({
+      where: { tenantId, slug: normalizedSlug, NOT: { id } },
+      select: { id: true },
+    });
+    if (slugCollision) return error(409, "CONFLICT", "Slug already exists in this tenant");
+
+    // Resolve category/brand within THIS tenant
+    let categoryId: string | null = null;
+    if (data.categorySlug) {
+      const cat = await db.category.findFirst({ where: { tenantId, slug: data.categorySlug } });
+      if (!cat) return error(400, "BAD_REQUEST", "Category not found");
+      categoryId = cat.id;
+    }
+
+    let brandId: string | null = null;
+    if (data.brandSlug) {
+      const b = await db.brand.findFirst({ where: { tenantId, slug: data.brandSlug } });
+      if (!b) return error(400, "BAD_REQUEST", "Brand not found");
+      brandId = b.id;
+    }
+
+    const updated = await db.product.update({
+      where: { id }, // unique; we've verified tenant ownership
+      data: {
+        name: data.name.trim(),
+        slug: normalizedSlug,
+        priceCents: data.priceCents,
+        currency: data.currency,
+        description: data.description?.trim() || null,
+        categoryId,
+        brandId,
+      },
+      include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
+    });
+
+    // Primary image handling (tenant-scoped)
+    if (typeof data.imageUrl === "string") {
+      const primary = updated.images[0];
+      if (data.imageUrl === "") {
+        await db.productImage.deleteMany({ where: { productId: id, tenantId } });
+      } else if (primary) {
+        await db.productImage.update({
+          where: { id: primary.id },
+          data: { url: data.imageUrl, alt: updated.name, sortOrder: 0 },
+        });
+      } else {
+        await db.productImage.create({
+          data: { tenantId, productId: id, url: data.imageUrl, alt: updated.name, sortOrder: 0 },
+        });
+      }
+    }
+
+    await audit(db, tenantId, session.user.id, "product.update", { id: updated.id, name: updated.name });
+
+    const result = await db.product.findFirst({
+      where: { id, tenantId },
+      include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
+    });
+
+    return ok(result ?? updated);
   }
+);
 
-  const result = await db.product.findFirst({
-    where: { id, tenantId },
-    include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
-  });
+// DELETE /api/admin/products/:id  (product.write)
+export const DELETE = withTenantPermission(
+  "product.write",
+  async (_req, { db, tenantId, params, session }) => {
+    const { id } = params as { id: string };
+    const parsedParams = paramsSchema.safeParse({ id });
+    if (!parsedParams.success) return error(400, "BAD_REQUEST", "Invalid id");
 
-  return NextResponse.json(result, { status: 200 });
-}
+    // Ensure in-tenant
+    const exists = await db.product.findFirst({ where: { id, tenantId }, select: { id: true } });
+    if (!exists) return error(404, "NOT_FOUND", "Product not found");
+
+    await db.$transaction([
+      db.productImage.deleteMany({ where: { productId: id, tenantId } }),
+      db.product.deleteMany({ where: { id, tenantId } }),
+    ]);
+
+    await audit(db, tenantId, session.user.id, "product.delete", { id });
+
+    return ok({ id, deleted: true });
+  }
+);

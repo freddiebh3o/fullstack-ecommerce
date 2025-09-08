@@ -441,7 +441,6 @@ npx prisma studio
 
 ### 🚧 Still to Do (Tenant Integration)
 - **Dashboard** → ensure metrics/data are scoped by current tenant.  
-- **Products** → apply the same tenant + permission guards as Categories/Brands.  
 - **Members** → tenant-specific CRUD with role assignment + safeguards.  
 - **Users tab** → restricted to Admin/Superadmin only (global view across tenants). Normal tenant users will never see this option.  
 

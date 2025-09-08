@@ -14,3 +14,9 @@ export async function canWriteBrand() {
   if (!tenantId) return false;
   return can("brand.write", tenantId);
 }
+
+export async function canWriteProduct() {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return false;
+  return can("product.write", tenantId);
+}

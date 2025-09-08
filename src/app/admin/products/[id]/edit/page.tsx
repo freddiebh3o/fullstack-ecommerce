@@ -1,12 +1,16 @@
+// src/app/admin/products/[id]/edit/page.tsx
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
+import ForbiddenPage from "@/app/403/page";
+import { ensurePagePermission } from "@/lib/page-guard";
 import EditProductForm from "@/components/admin/edit-product-form";
-import { getCurrentTenantId } from "@/lib/tenant";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
+  const perm = await ensurePagePermission("product.write");
+  if (!perm.allowed) return <ForbiddenPage />;
+
+  const { tenantId } = perm;
   const { id } = await params;
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) notFound();
 
   const [product, categories, brands] = await Promise.all([
     db.product.findFirst({

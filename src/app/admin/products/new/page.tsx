@@ -1,12 +1,14 @@
+// src/app/admin/products/new/page.tsx
 import { db } from "@/lib/db";
+import ForbiddenPage from "@/app/403/page";
+import { ensurePagePermission } from "@/lib/page-guard";
 import NewProductForm from "@/components/admin/new-product-form";
-import { getCurrentTenantId } from "@/lib/tenant";
 
 export default async function NewProductPage() {
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) {
-    return <div className="text-red-600">No tenant selected.</div>;
-  }
+  const perm = await ensurePagePermission("product.write");
+  if (!perm.allowed) return <ForbiddenPage />;
+
+  const { tenantId } = perm;
 
   const [categories, brands] = await Promise.all([
     db.category.findMany({ where: { tenantId }, select: { name: true, slug: true }, orderBy: { name: "asc" } }),

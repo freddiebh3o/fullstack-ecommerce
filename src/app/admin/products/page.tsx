@@ -2,13 +2,15 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import ProductTable from "@/components/admin/product-table";
-import { getCurrentTenantId } from "@/lib/tenant";
+import ForbiddenPage from "@/app/403/page";
+import { ensureAnyPagePermission } from "@/lib/page-guard";
+import { can } from "@/lib/permissions";
 
 export default async function AdminProductsListPage() {
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) {
-    return <div className="text-red-600">No tenant selected.</div>;
-  }
+  const perm = await ensureAnyPagePermission(["product.read", "product.write"]);
+  if (!perm.allowed) return <ForbiddenPage />;
+
+  const { tenantId } = perm;
 
   const products = await db.product.findMany({
     where: { tenantId },
@@ -20,6 +22,8 @@ export default async function AdminProductsListPage() {
     },
   });
 
+  const mayWrite = await can("product.write", tenantId);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -29,12 +33,15 @@ export default async function AdminProductsListPage() {
             {products.length} item{products.length === 1 ? "" : "s"}
           </p>
         </div>
-        <Link
-          href="/admin/products/new"
-          className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium hover:bg-accent"
-        >
-          New Product
-        </Link>
+
+        {mayWrite ? (
+          <Link
+            href="/admin/products/new"
+            className="inline-flex h-9 items-center rounded-md border px-3 text-sm font-medium hover:bg-accent"
+          >
+            New Product
+          </Link>
+        ) : null}
       </div>
 
       <ProductTable products={products} />
