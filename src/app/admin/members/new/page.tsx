@@ -1,11 +1,14 @@
 // src/app/admin/members/new/page.tsx
 import { db } from "@/lib/db";
-import { getCurrentTenantId } from "@/lib/tenant";
+import ForbiddenPage from "@/app/403/page";
+import { ensurePagePermission } from "@/lib/page-guard";
 import NewMemberForm from "@/components/admin/new-member-form";
 
 export default async function NewMemberPage() {
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) return null;
+  const perm = await ensurePagePermission("member.manage");
+  if (!perm.allowed) return <ForbiddenPage />;
+
+  const { tenantId } = perm;
 
   const roles = await db.role.findMany({
     where: { tenantId },

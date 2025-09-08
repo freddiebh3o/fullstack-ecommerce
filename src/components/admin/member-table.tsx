@@ -4,12 +4,13 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToast } from "@/components/ui/toast-provider";
+import PermissionGate from "@/components/auth/PermissionGate";
+import { canManageMembers } from "@/app/actions/perm";
 
 type Member = {
   id: string;
   user: { id: string; email: string; name: string | null };
   role: { id: string; key: "OWNER" | "ADMIN" | "EDITOR" | "READONLY"; name: string };
-  // createdAt?: string;
 };
 type Role = { id: string; key: "OWNER" | "ADMIN" | "EDITOR" | "READONLY"; name: string };
 
@@ -20,31 +21,51 @@ export default function MemberTable({ members, roles }: { members: Member[]; rol
 
   async function changeRole(membershipId: string, roleKey: Role["key"]) {
     setBusy(membershipId);
-    const res = await fetch(`/api/admin/members/${membershipId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roleKey }),
-    });
-    setBusy(null);
-    if (!res.ok) {
-      toast({ title: "Failed", message: await res.text(), variant: "destructive" });
-      return;
+    try {
+      const res = await fetch(`/api/admin/members/${membershipId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roleKey }),
+      });
+      let msg = "Failed to update role.";
+      try {
+        const body = await res.json();
+        if (body?.error?.message) msg = body.error.message;
+      } catch {
+        try { msg = await res.text(); } catch {}
+      }
+      if (!res.ok) {
+        toast({ title: "Failed", message: msg, variant: "destructive" });
+        return;
+      }
+      toast({ message: "Role updated" });
+      router.refresh();
+    } finally {
+      setBusy(null);
     }
-    toast({ message: "Role updated" });
-    router.refresh();
   }
 
   async function remove(membershipId: string) {
     if (!confirm("Remove this member from the tenant?")) return;
     setBusy(membershipId);
-    const res = await fetch(`/api/admin/members/${membershipId}`, { method: "DELETE" });
-    setBusy(null);
-    if (!res.ok) {
-      toast({ title: "Failed", message: await res.text(), variant: "destructive" });
-      return;
+    try {
+      const res = await fetch(`/api/admin/members/${membershipId}`, { method: "DELETE" });
+      let msg = "Failed to remove member.";
+      try {
+        const body = await res.json();
+        if (body?.error?.message) msg = body.error.message;
+      } catch {
+        try { msg = await res.text(); } catch {}
+      }
+      if (!res.ok) {
+        toast({ title: "Failed", message: msg, variant: "destructive" });
+        return;
+      }
+      toast({ message: "Member removed" });
+      router.refresh();
+    } finally {
+      setBusy(null);
     }
-    toast({ message: "Member removed" });
-    router.refresh();
   }
 
   return (
@@ -64,25 +85,35 @@ export default function MemberTable({ members, roles }: { members: Member[]; rol
               <td className="px-4 py-3">{m.user.name ?? "—"}</td>
               <td className="px-4 py-3">{m.user.email}</td>
               <td className="px-4 py-3">
-                <select
-                  className="rounded-md border bg-background px-2 py-1"
-                  value={m.role.key}
-                  onChange={(e) => changeRole(m.id, e.target.value as Role["key"])}
-                  disabled={busy === m.id}
-                >
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.key}>{r.name}</option>
-                  ))}
-                </select>
+                <PermissionGate check={canManageMembers}>
+                  {(allowed) => (
+                    <select
+                      className="rounded-md border bg-background px-2 py-1"
+                      value={m.role.key}
+                      onChange={(e) => allowed && changeRole(m.id, e.target.value as Role["key"])}
+                      disabled={!allowed || busy === m.id}
+                      title={allowed ? "Change role" : "You don’t have permission to manage members"}
+                    >
+                      {roles.map((r) => (
+                        <option key={r.id} value={r.key}>{r.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </PermissionGate>
               </td>
               <td className="px-4 py-3 text-right">
-                <button
-                  onClick={() => remove(m.id)}
-                  className="text-destructive underline hover:no-underline disabled:opacity-50"
-                  disabled={busy === m.id}
-                >
-                  {busy === m.id ? "Removing..." : "Remove"}
-                </button>
+                <PermissionGate check={canManageMembers}>
+                  {(allowed) => (
+                    <button
+                      onClick={() => allowed && remove(m.id)}
+                      className="text-destructive underline hover:no-underline disabled:opacity-50"
+                      disabled={!allowed || busy === m.id}
+                      title={allowed ? "Remove member" : "You don’t have permission to manage members"}
+                    >
+                      {busy === m.id ? "Removing..." : "Remove"}
+                    </button>
+                  )}
+                </PermissionGate>
               </td>
             </tr>
           ))}

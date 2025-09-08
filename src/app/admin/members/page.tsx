@@ -1,32 +1,17 @@
 // src/app/admin/members/page.tsx
 import { db } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { getCurrentTenantId } from "@/lib/tenant";
+import ForbiddenPage from "@/app/403/page";
+import { ensureAnyPagePermission, ensurePagePermission } from "@/lib/page-guard";
 import MemberTable from "@/components/admin/member-table";
-import { can } from "@/lib/permissions";           // <-- add
 
 export default async function MembersPage() {
-  const session = await getServerSession(authOptions);
-  const tenantId = await getCurrentTenantId();
+  // Allow read OR manage to view the page
+  const perm = await ensureAnyPagePermission(["member.read", "member.manage"]);
+  if (!perm.allowed) return <ForbiddenPage />;
 
-  // If not logged in, show nothing or redirect
-  if (!session) return null;
-  if (!tenantId) {
-    // TODO: redirect to a tenant-picker or show a message
-    return null;
-  }
+  const { tenantId } = perm;
 
-  // Require the correct tenant-level permission instead of system role
-  const allowed = tenantId ? await can("member.manage", tenantId) : false;
-  if (!allowed) {
-    // You can render a friendly 403 instead of blank:
-    // return <p className="text-muted-foreground">You don’t have access to Members.</p>;
-    return null;
-  }
-
-  // Now fetch tenant-scoped data
-  const [members, roles] = await Promise.all([
+  const [members, roles, mayManage] = await Promise.all([
     db.membership.findMany({
       where: { tenantId },
       select: {
@@ -41,14 +26,16 @@ export default async function MembersPage() {
       select: { id: true, key: true, name: true },
       orderBy: { key: "asc" },
     }),
+    (async () => (await ensurePagePermission("member.manage")).allowed)(),
   ]);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Members</h1>
-        <a className="underline" href="/admin/members/new">Add member</a>
+        {mayManage ? <a className="underline" href="/admin/members/new">Add member</a> : null}
       </div>
+
       <MemberTable members={members as any} roles={roles as any} />
     </div>
   );

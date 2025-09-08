@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import PermissionGate from "@/components/auth/PermissionGate";
-import { canSeeMembers } from "@/app/actions/perm";
+import { canReadMembers } from "@/app/actions/perm";
 import { isSystemAdmin } from "@/app/actions/is-system-admin";
 
 const baseLinks = [
@@ -13,7 +13,7 @@ const baseLinks = [
   { href: "/admin/categories", label: "Categories", guard: null },
   { href: "/admin/brands", label: "Brands", guard: null },
   // Members → needs tenant perm (member.read OR member.manage)
-  { href: "/admin/members", label: "Members", guard: canSeeMembers },
+  { href: "/admin/members", label: "Members", guard: canReadMembers },
   // Users → system-level only (ADMIN/SUPERADMIN)
   { href: "/admin/users", label: "Users", guard: isSystemAdmin },
 ];
