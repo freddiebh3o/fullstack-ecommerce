@@ -2,19 +2,22 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import UserTable from "@/components/admin/user-table";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import ForbiddenPage from "@/app/403/page";
+import { ensureSystemRole } from "@/lib/system-guard";
 
 export default async function AdminUsersPage() {
-  const [users, session] = await Promise.all([
+  // Only ADMIN / SUPERADMIN may view Users
+  const guard = await ensureSystemRole(["ADMIN", "SUPERADMIN"]);
+  if (!guard.allowed) return <ForbiddenPage />;
+
+  const [users] = await Promise.all([
     db.user.findMany({
       orderBy: { createdAt: "desc" },
       select: { id: true, email: true, name: true, role: true, createdAt: true },
     }),
-    getServerSession(authOptions),
   ]);
 
-  const currentUserId = (session?.user as any)?.id ?? null;
+  const currentUserId = (guard.session.user as any)?.id ?? null;
 
   return (
     <div className="space-y-6">

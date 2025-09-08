@@ -14,7 +14,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 const schema = z.object({
   email: z.string().email(),
   name: z.string().optional(),
-  role: z.enum(["ADMIN", "USER"]),
+  role: z.enum(["ADMIN", "USER", "SUPERADMIN"]),
   password: z.string().min(8).optional(), // set to reset
 });
 type FormValues = z.input<typeof schema>;
@@ -25,7 +25,7 @@ export default function EditUserForm({
   isSelf,
 }: {
   id: string;
-  initial: { email: string; name: string; role: "ADMIN" | "USER" };
+  initial: { email: string; name: string; role: "ADMIN" | "USER" | "SUPERADMIN" };
   isSelf: boolean;
 }) {
   const router = useRouter();
@@ -106,6 +106,7 @@ export default function EditUserForm({
                   <SelectContent>
                     <SelectItem value="USER">Customer</SelectItem>
                     <SelectItem value="ADMIN">Admin</SelectItem>
+                    <SelectItem value="SUPERADMIN">Superadmin</SelectItem>
                   </SelectContent>
                 </Select>
               </FormControl>

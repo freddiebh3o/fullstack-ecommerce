@@ -20,3 +20,14 @@ export async function canWriteProduct() {
   if (!tenantId) return false;
   return can("product.write", tenantId);
 }
+
+export async function canSeeMembers() {
+  const tenantId = await getCurrentTenantId();
+  if (!tenantId) return false;
+  // Show "Members" if they have read OR manage permission
+  const [r, m] = await Promise.all([
+    can("member.read", tenantId),
+    can("member.manage", tenantId),
+  ]);
+  return r || m;
+}

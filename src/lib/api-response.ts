@@ -8,7 +8,8 @@ export type ApiErrorCode =
   | "VALIDATION"
   | "CONFLICT"
   | "BAD_REQUEST"
-  | "SERVER_ERROR";
+  | "SERVER_ERROR"
+  | "UNAUTHENTICATED";
 
 export function error(status: number, code: ApiErrorCode, message: string, details?: any) {
   return NextResponse.json({ ok: false, error: { code, message, details } }, { status });

@@ -1,20 +1,23 @@
 // src/app/admin/users/[id]/edit/page.tsx
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
+import ForbiddenPage from "@/app/403/page";
+import { ensureSystemRole } from "@/lib/system-guard";
 import EditUserForm from "@/components/admin/edit-user-form";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 
-export default async function EditUserPage({ params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
+export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
+  const guard = await ensureSystemRole(["ADMIN", "SUPERADMIN"]);
+  if (!guard.allowed) return <ForbiddenPage />;
+
+  const { id } = await params; // Next 15 async params
 
   const user = await db.user.findUnique({
-    where: { id: params.id },
+    where: { id },
     select: { id: true, email: true, name: true, role: true },
   });
   if (!user) notFound();
 
-  const isSelf = (session?.user as any)?.id === user.id;
+  const isSelf = (guard.session.user as any)?.id === user.id;
 
   return (
     <div className="space-y-6 max-w-xl">

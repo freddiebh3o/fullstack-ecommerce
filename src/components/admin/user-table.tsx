@@ -15,7 +15,7 @@ type Row = {
   id: string;
   email: string;
   name: string | null;
-  role: "ADMIN" | "USER";
+  role: "ADMIN" | "USER" | "SUPERADMIN";
   createdAt: Date | string;
 };
 
@@ -65,7 +65,9 @@ export default function UserTable({
               <tr key={u.id} className="border-t">
                 <td className="px-4 py-3 font-medium">{u.email}</td>
                 <td className="px-4 py-3">{u.name ?? "—"}</td>
-                <td className="px-4 py-3">{u.role === "USER" ? "Customer" : "Admin"}</td>
+                <td className="px-4 py-3">
+                  {u.role === "USER" ? "Customer" : u.role === "ADMIN" ? "Admin" : "Superadmin"}
+                </td>
                 <td className="px-4 py-3">{DATE_FMT.format(new Date(u.createdAt))}</td>
                 <td className="px-4 py-3 text-right">
                   <a href={`/admin/users/${u.id}/edit`} className="mr-2 underline hover:no-underline">

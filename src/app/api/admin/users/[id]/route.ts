@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
+// src/app/api/admin/users/[id]/route.ts
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
+import { db } from "@/lib/db";
+import { ok, error } from "@/lib/api-response";
+import { withSystemRole ,SystemGuardCtx } from "@/lib/system-guard";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 
@@ -15,7 +16,6 @@ const patchSchema = z.object({
 });
 
 async function ensureNotDemotingLastAdmin(targetUserId: string, newRole?: "ADMIN" | "USER" | "SUPERADMIN") {
-  // Only applies when demoting an ADMIN to USER (or to SUPERADMIN? no, SUPERADMIN is higher)
   if (!newRole || newRole !== "USER") return;
   const target = await db.user.findUnique({ where: { id: targetUserId }, select: { role: true } });
   if (!target || target.role !== "ADMIN") return;
@@ -30,19 +30,17 @@ async function ensureNotDeletingLastAdmin(targetUserId: string) {
   if (adminCount <= 1) throw new Error("Cannot delete the last remaining system ADMIN");
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  const sysRole = (session?.user as any)?.role;
-  if (sysRole !== "ADMIN" && sysRole !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const parsedParams = paramsSchema.safeParse(params);
-  if (!parsedParams.success) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  const { id } = parsedParams.data;
+// PATCH /api/admin/users/:id  (ADMIN | SUPERADMIN)
+export const PATCH = withSystemRole(["ADMIN", "SUPERADMIN"], async (req, ctx: SystemGuardCtx) => {
+  const { session } = ctx;
+  const url = new URL(req.url);
+  const id = url.pathname.split("/").pop() || "";
+  const parsedParams = paramsSchema.safeParse({ id });
+  if (!parsedParams.success) return error(400, "BAD_REQUEST", "Invalid id");
 
   const parsedBody = patchSchema.safeParse(await req.json());
-  if (!parsedBody.success) return NextResponse.json(parsedBody.error.flatten(), { status: 400 });
+  if (!parsedBody.success) return error(400, "VALIDATION", "Invalid request body", parsedBody.error.flatten());
+
   const { email, name, role, password } = parsedBody.data;
 
   try {
@@ -55,48 +53,45 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (password) data.passwordHash = await bcrypt.hash(password, 10);
 
     const user = await db.user.update({ where: { id }, data });
-    return NextResponse.json(user, { status: 200 });
+    return ok(user);
   } catch (e: any) {
     if (e.message?.includes("last remaining system ADMIN")) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+      return error(400, "BAD_REQUEST", e.message);
     }
-    if (e.code === "P2002") {
-      return NextResponse.json({ error: "Email already exists" }, { status: 409 });
+    if ((e as Prisma.PrismaClientKnownRequestError).code === "P2002") {
+      return error(409, "CONFLICT", "Email already exists");
     }
-    if (e.code === "P2025") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if ((e as Prisma.PrismaClientKnownRequestError).code === "P2025") {
+      return error(404, "NOT_FOUND", "Not found");
     }
     throw e;
   }
-}
+});
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  const sysRole = (session?.user as any)?.role;
-  if (sysRole !== "ADMIN" && sysRole !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
-  const parsedParams = paramsSchema.safeParse(params);
-  if (!parsedParams.success) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
-  const { id } = parsedParams.data;
+// DELETE /api/admin/users/:id  (ADMIN | SUPERADMIN)
+export const DELETE = withSystemRole(["ADMIN", "SUPERADMIN"], async (req, ctx: SystemGuardCtx) => {
+  const { session } = ctx;
+  const url = new URL(req.url);
+  const id = url.pathname.split("/").pop() || "";
+  const parsedParams = paramsSchema.safeParse({ id });
+  if (!parsedParams.success) return error(400, "BAD_REQUEST", "Invalid id");
 
   // don't let users delete themselves
   if ((session?.user as any)?.id === id) {
-    return NextResponse.json({ error: "You cannot delete your own account" }, { status: 400 });
+    return error(400, "BAD_REQUEST", "You cannot delete your own account");
   }
 
   try {
     await ensureNotDeletingLastAdmin(id);
     await db.user.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+    return ok({ id, deleted: true });
   } catch (e: any) {
     if (e.message?.includes("last remaining system ADMIN")) {
-      return NextResponse.json({ error: e.message }, { status: 400 });
+      return error(400, "BAD_REQUEST", e.message);
     }
-    if (e.code === "P2025") {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if ((e as Prisma.PrismaClientKnownRequestError).code === "P2025") {
+      return error(404, "NOT_FOUND", "Not found");
     }
     throw e;
   }
-}
+});

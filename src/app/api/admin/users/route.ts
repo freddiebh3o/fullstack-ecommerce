@@ -1,11 +1,10 @@
 // src/app/api/admin/users/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
+import { db } from "@/lib/db";
+import { ok, error } from "@/lib/api-response";
+import { withSystemRole } from "@/lib/system-guard";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -14,17 +13,10 @@ const bodySchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const sysRole = (session?.user as any)?.role; 
-  if (sysRole !== "ADMIN" && sysRole !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-
+// POST /api/admin/users  (ADMIN | SUPERADMIN)
+export const POST = withSystemRole(["ADMIN", "SUPERADMIN"], async (req) => {
   const parsed = bodySchema.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json(parsed.error.flatten(), { status: 400 });
-  }
+  if (!parsed.success) return error(400, "VALIDATION", "Invalid request body", parsed.error.flatten());
 
   const { email, name, role, password } = parsed.data;
 
@@ -38,14 +30,14 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json(user, {
+    return ok(user, {
       status: 201,
       headers: { Location: `/admin/users/${user.id}/edit` },
     });
   } catch (e: any) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      return NextResponse.json({ error: "Email already exists" }, { status: 409 });
+      return error(409, "CONFLICT", "Email already exists");
     }
     throw e;
   }
-}
+});
