@@ -865,6 +865,7 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ===ACTIVITY TIMEOUTS===
 
+
 #### Epic: Custom Roles & Permissions
 
 **Scope:** Allow tenant OWNER/ADMIN users (and system-level Admin/Superadmin) to define custom roles with fine-grained permissions, beyond the default seeded roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).
@@ -917,6 +918,10 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [ ] Orders can select branch for fulfillment.  
 - [ ] Customers can have preferred branch.  
 - [ ] Feature flag per tenant/plan.  
+
+### Epic: Media Library & image editting
+- [ ] Index page for any images/videos uploaded to the platform
+- [ ] Ability to edit the image (crop/rotate etc) on upload and when the user edits
 
 #### Epic: Product Media & Details
 - [ ] Admins can upload multiple images for a product, reorder them, and set alt text.
