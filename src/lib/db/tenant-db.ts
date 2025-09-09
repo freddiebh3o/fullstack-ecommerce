@@ -1,6 +1,6 @@
-// src/lib/tenant-db.ts
-import { db } from "@/lib/db";
-import { getCurrentTenantId } from "@/lib/tenant";
+// src/lib/db/tenant-db.ts
+import { db } from "@/lib/db/prisma";
+import { getCurrentTenantId } from "@/lib/tenant/resolve";
 
 /**
  * Canonical helper for all routes.

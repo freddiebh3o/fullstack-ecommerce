@@ -1,8 +1,8 @@
 // src/app/admin/categories/[id]/edit/page.tsx
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import ForbiddenPage from "@/app/403/page";
-import { ensurePagePermission } from "@/lib/page-guard";
+import { ensurePagePermission } from "@/lib/auth/guards/page";
 import EditCategoryForm from "@/components/admin/edit-category-form";
 
 export default async function EditCategoryPage({ params }: { params: Promise<{ id: string }> }) {

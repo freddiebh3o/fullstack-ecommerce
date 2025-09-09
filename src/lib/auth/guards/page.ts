@@ -1,8 +1,8 @@
-// src/lib/page-guard.ts
+// src/lib/auth/guards/page.ts
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { can } from "@/lib/permissions";
-import { getCurrentTenantId } from "@/lib/tenant";
+import { authOptions } from "@/lib/auth/nextauth";
+import { can } from "@/lib/auth/permissions";
+import { getCurrentTenantId } from "@/lib/tenant/resolve";
 
 export async function ensurePagePermission(permissionKey: string) {
   const session = await getServerSession(authOptions);

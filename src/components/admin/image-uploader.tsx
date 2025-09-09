@@ -5,7 +5,7 @@ import * as React from "react";
 import { useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/misc";
 
 type PresignResponse = {
   url: string;

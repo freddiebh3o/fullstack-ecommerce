@@ -1,6 +1,6 @@
 // src/app/admin/users/new/page.tsx
 import ForbiddenPage from "@/app/403/page";
-import { ensureSystemRole } from "@/lib/system-guard";
+import { ensureSystemRole } from "@/lib/auth/guards/system";
 import NewUserForm from "@/components/admin/new-user-form";
 
 export default async function NewUserPage() {

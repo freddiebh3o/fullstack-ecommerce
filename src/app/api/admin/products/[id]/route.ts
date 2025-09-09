@@ -1,9 +1,9 @@
 // src/app/api/admin/products/[id]/route.ts
 import { z } from "zod";
-import { slugify } from "@/lib/slug";
-import { withAnyTenantPermission, withTenantPermission } from "@/lib/route-guard";
-import { ok, error } from "@/lib/api-response";
-import { audit } from "@/lib/audit";
+import { slugify } from "@/lib/utils/slug";
+import { withAnyTenantPermission, withTenantPermission } from "@/lib/auth/guards/api";
+import { ok, error } from "@/lib/api/response";
+import { audit } from "@/lib/audit/audit";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 

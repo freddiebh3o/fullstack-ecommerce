@@ -2,9 +2,9 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
-import { ok, error } from "@/lib/api-response";
-import { withSystemRole } from "@/lib/system-guard";
+import { db } from "@/lib/db/prisma";
+import { ok, error } from "@/lib/api/response";
+import { withSystemRole } from "@/lib/auth/guards/system";
 
 const bodySchema = z.object({
   email: z.string().email(),

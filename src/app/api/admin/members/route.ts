@@ -1,9 +1,9 @@
 // src/app/api/admin/members/route.ts
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { ok, error } from "@/lib/api-response";
-import { withAnyTenantPermission, withTenantPermission } from "@/lib/route-guard";
-import { audit } from "@/lib/audit";
+import { ok, error } from "@/lib/api/response";
+import { withAnyTenantPermission, withTenantPermission } from "@/lib/auth/guards/api";
+import { audit } from "@/lib/audit/audit";
 
 const postSchema = z.object({
   email: z.string().email(),
@@ -68,7 +68,7 @@ export const POST = withTenantPermission(
 
     // Create or find global user
     const lower = email.toLowerCase();
-    const global = (await import("@/lib/db")).db; // use global prisma
+    const global = (await import("@/lib/db/prisma")).db; // use global prisma
     let user = await global.user.findUnique({ where: { email: lower } });
     if (!user) {
       const pw = password ?? "TempPass123!";

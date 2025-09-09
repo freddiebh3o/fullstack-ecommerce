@@ -1,8 +1,8 @@
 // src/app/admin/users/[id]/edit/page.tsx
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
 import ForbiddenPage from "@/app/403/page";
-import { ensureSystemRole } from "@/lib/system-guard";
+import { ensureSystemRole } from "@/lib/auth/guards/system";
 import EditUserForm from "@/components/admin/edit-user-form";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {

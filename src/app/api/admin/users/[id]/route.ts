@@ -2,9 +2,9 @@
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
-import { ok, error } from "@/lib/api-response";
-import { withSystemRole ,SystemGuardCtx } from "@/lib/system-guard";
+import { db } from "@/lib/db/prisma";
+import { ok, error } from "@/lib/api/response";
+import { withSystemRole ,SystemGuardCtx } from "@/lib/auth/guards/system";
 
 const paramsSchema = z.object({ id: z.string().min(1) });
 

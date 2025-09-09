@@ -1,8 +1,8 @@
-// src/lib/system-guard.ts
+// src/lib/auth/guards/system.ts
 import { getServerSession, type Session } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { error } from "@/lib/api-response";
+import { authOptions } from "@/lib/auth/nextauth";
+import { db } from "@/lib/db/prisma";
+import { error } from "@/lib/api/response";
 
 export type SystemRole = "ADMIN" | "SUPERADMIN" | "USER";
 

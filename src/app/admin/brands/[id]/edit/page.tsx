@@ -1,8 +1,8 @@
 // src/app/admin/brands/[id]/edit/page.tsx
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
 import ForbiddenPage from "@/app/403/page";
-import { ensurePagePermission } from "@/lib/page-guard";
+import { ensurePagePermission } from "@/lib/auth/guards/page";
 import EditBrandForm from "@/components/admin/edit-brand-form";
 
 export default async function EditBrandPage({ params }: { params: Promise<{ id: string }> }) {

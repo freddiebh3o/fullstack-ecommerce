@@ -1,7 +1,7 @@
 "use server";
 
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/auth/nextauth";
 
 export async function isSystemAdmin() {
   const session = await getServerSession(authOptions);

@@ -1,6 +1,6 @@
 // src/app/admin/categories/new/page.tsx
 import ForbiddenPage from "@/app/403/page";
-import { ensurePagePermission } from "@/lib/page-guard";
+import { ensurePagePermission } from "@/lib/auth/guards/page";
 import NewCategoryForm from "@/components/admin/new-category-form";
 
 export default async function NewCategoryPage() {

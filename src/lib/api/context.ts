@@ -1,9 +1,9 @@
-// src/lib/api-ctx.ts
+// src/lib/api/context.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { getCurrentTenantId } from "@/lib/tenant";
+import { authOptions } from "@/lib/auth/nextauth";
+import { db } from "@/lib/db/prisma";
+import { getCurrentTenantId } from "@/lib/tenant/resolve";
 
 /**
  * Standardizes auth + tenant resolution for Admin API routes.

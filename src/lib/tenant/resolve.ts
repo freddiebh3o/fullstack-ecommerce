@@ -1,29 +1,29 @@
-// src/lib/tenant.ts
+// src/lib/tenant/resolve.ts
+import "server-only";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { authOptions } from "@/lib/auth/nextauth";
+import { db } from "@/lib/db/prisma";
+
+const TENANT_COOKIE = "x-current-tenant-id";
 
 /**
  * Resolve the *valid* current tenant for the logged-in user.
  * Order:
- *  1) cookie("tenantId") if it exists *and* the user has a membership there (or is SUPERADMIN)
+ *  1) cookie(x-current-tenant-id) if it exists *and* is valid for this user (or SUPERADMIN)
  *  2) first membership’s tenant
  *  3) (SUPERADMIN only) first tenant in system
  *  4) null
  */
-export async function getCurrentTenantId() {
+export async function getCurrentTenantId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? null;
   const isSuper = (session?.user as any)?.role === "SUPERADMIN";
-
-  // 1) cookie
   const cookieStore = await cookies();
-  const cookieTenantId = cookieStore.get("tenantId")?.value || null;
-
+  // 1) cookie
+  const cookieTenantId = cookieStore.get(TENANT_COOKIE)?.value ?? null;
   if (cookieTenantId) {
     if (isSuper) {
-      // superadmin: any tenant is OK if it exists
       const exists = await db.tenant.findUnique({ where: { id: cookieTenantId }, select: { id: true } });
       if (exists) return cookieTenantId;
     } else if (userId) {
@@ -35,7 +35,7 @@ export async function getCurrentTenantId() {
     }
   }
 
-  // 2) fallback: first membership
+  // 2) first membership
   if (userId) {
     const m = await db.membership.findFirst({
       where: { userId },

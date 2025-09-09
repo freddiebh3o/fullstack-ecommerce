@@ -1,10 +1,10 @@
 // src/app/api/admin/products/route.ts
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { slugify } from "@/lib/slug";
-import { withAnyTenantPermission, withTenantPermission } from "@/lib/route-guard";
-import { ok, error } from "@/lib/api-response";
-import { audit } from "@/lib/audit";
+import { slugify } from "@/lib/utils/slug";
+import { withAnyTenantPermission, withTenantPermission } from "@/lib/auth/guards/api";
+import { ok, error } from "@/lib/api/response";
+import { audit } from "@/lib/audit/audit";
 
 const querySchema = z.object({
   q: z.string().trim().optional(),

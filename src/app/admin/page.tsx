@@ -1,11 +1,11 @@
 // src/app/admin/page.tsx
 import Link from "next/link";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
-import { getCurrentTenantId } from "@/lib/tenant";
-import { canAny } from "@/lib/permissions";
-import { ensureSystemRole } from "@/lib/system-guard";
+import { authOptions } from "@/lib/auth/nextauth";
+import { db } from "@/lib/db/prisma";
+import { getCurrentTenantId } from "@/lib/tenant/resolve";
+import { canAny } from "@/lib/auth/permissions";
+import { ensureSystemRole } from "@/lib/auth/guards/system";
 import { Package, Tags, Bookmark, Users, UserPlus } from "lucide-react";
 
 function Card({

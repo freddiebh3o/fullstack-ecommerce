@@ -1,9 +1,9 @@
-// src/lib/route-guard.ts
+// src/lib/auth/guards/api.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { tenantDb } from "@/lib/tenant-db";
-import { can } from "@/lib/permissions";
+import { authOptions } from "@/lib/auth/nextauth";
+import { tenantDb } from "@/lib/db/tenant-db";
+import { can } from "@/lib/auth/permissions";
 import type { Session } from "next-auth";
 import type { PrismaClient } from "@prisma/client";
 

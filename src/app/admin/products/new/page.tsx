@@ -1,7 +1,7 @@
 // src/app/admin/products/new/page.tsx
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import ForbiddenPage from "@/app/403/page";
-import { ensurePagePermission } from "@/lib/page-guard";
+import { ensurePagePermission } from "@/lib/auth/guards/page";
 import NewProductForm from "@/components/admin/new-product-form";
 
 export default async function NewProductPage() {

@@ -1,10 +1,10 @@
-// lib/auth.ts
+// src/lib/auth/nextauth.ts
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
 import type { Session, User } from "next-auth";
 import bcrypt from "bcryptjs";
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,

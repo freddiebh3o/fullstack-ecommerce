@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/misc";
 
 type Toast = { id: string; title?: string; message: string; variant?: "default" | "destructive" };
 type Ctx = { push: (t: Omit<Toast, "id">) => void };

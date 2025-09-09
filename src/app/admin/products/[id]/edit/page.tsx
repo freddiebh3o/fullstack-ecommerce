@@ -1,8 +1,8 @@
 // src/app/admin/products/[id]/edit/page.tsx
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import { notFound } from "next/navigation";
 import ForbiddenPage from "@/app/403/page";
-import { ensurePagePermission } from "@/lib/page-guard";
+import { ensurePagePermission } from "@/lib/auth/guards/page";
 import EditProductForm from "@/components/admin/edit-product-form";
 
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {

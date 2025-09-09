@@ -1,6 +1,6 @@
 // src/app/admin/brands/new/page.tsx
 import ForbiddenPage from "@/app/403/page";
-import { ensurePagePermission } from "@/lib/page-guard";
+import { ensurePagePermission } from "@/lib/auth/guards/page";
 import NewBrandForm from "@/components/admin/new-brand-form";
 
 export default async function NewBrandPage() {

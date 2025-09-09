@@ -1,9 +1,9 @@
 // src/app/api/admin/members/[id]/route.ts
 import { z } from "zod";
 import type { PrismaClient } from "@prisma/client";
-import { ok, error } from "@/lib/api-response";
-import { withTenantPermission } from "@/lib/route-guard";
-import { audit } from "@/lib/audit";
+import { ok, error } from "@/lib/api/response";
+import { withTenantPermission } from "@/lib/auth/guards/api";
+import { audit } from "@/lib/audit/audit";
 
 const patchSchema = z.object({
   roleKey: z.enum(["OWNER", "ADMIN", "EDITOR", "READONLY"]),

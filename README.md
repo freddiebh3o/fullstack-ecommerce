@@ -853,6 +853,8 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ### 🚧 Planned Epics
 
+===ACTIVITY TIMEOUTS===
+
 #### Epic: Custom Roles & Permissions
 
 **Scope:** Allow tenant OWNER/ADMIN users (and system-level Admin/Superadmin) to define custom roles with fine-grained permissions, beyond the default seeded roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).

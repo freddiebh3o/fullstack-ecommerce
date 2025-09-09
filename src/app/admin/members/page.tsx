@@ -1,7 +1,7 @@
 // src/app/admin/members/page.tsx
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import ForbiddenPage from "@/app/403/page";
-import { ensureAnyPagePermission, ensurePagePermission } from "@/lib/page-guard";
+import { ensureAnyPagePermission, ensurePagePermission } from "@/lib/auth/guards/page";
 import MemberTable from "@/components/admin/member-table";
 
 export default async function MembersPage() {

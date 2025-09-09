@@ -1,10 +1,10 @@
 // src/app/admin/categories/page.tsx
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import CategoryTable from "@/components/admin/category-table";
 import ForbiddenPage from "@/app/403/page";
-import { ensureAnyPagePermission } from "@/lib/page-guard";
-import { can } from "@/lib/permissions";
+import { ensureAnyPagePermission } from "@/lib/auth/guards/page";
+import { can } from "@/lib/auth/permissions";
 
 export default async function AdminCategoriesPage() {
   // Allow users with either read or write

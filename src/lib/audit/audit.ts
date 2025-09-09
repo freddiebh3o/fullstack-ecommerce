@@ -1,4 +1,4 @@
-// src/lib/audit.ts
+// src/lib/audit/audit.ts
 export async function audit(
   db: any,
   tenantId: string,

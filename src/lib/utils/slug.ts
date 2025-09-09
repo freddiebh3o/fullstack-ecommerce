@@ -1,4 +1,4 @@
-// src/lib/slug.ts
+// src/lib/utils/slug.ts
 export function slugify(input: string) {
     return input
       .toLowerCase()

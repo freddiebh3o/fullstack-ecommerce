@@ -1,10 +1,10 @@
 // src/app/admin/products/page.tsx
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import ProductTable from "@/components/admin/product-table";
 import ForbiddenPage from "@/app/403/page";
-import { ensureAnyPagePermission } from "@/lib/page-guard";
-import { can } from "@/lib/permissions";
+import { ensureAnyPagePermission } from "@/lib/auth/guards/page";
+import { can } from "@/lib/auth/permissions";
 
 export default async function AdminProductsListPage() {
   const perm = await ensureAnyPagePermission(["product.read", "product.write"]);

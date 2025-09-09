@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils/misc";
 import PermissionGate from "@/components/auth/PermissionGate";
 import { canReadMembers } from "@/app/actions/perm";
 import { isSystemAdmin } from "@/app/actions/is-system-admin";

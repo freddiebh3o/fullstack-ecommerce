@@ -1,4 +1,4 @@
-// src/lib/client-fetch.ts
+// src/lib/api/client.ts
 export async function apiFetch(input: RequestInfo, init?: RequestInit) {
   const res = await fetch(input, {
     ...init,
@@ -16,7 +16,7 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     // Example UX decisions:
     if (res.status === 401) {
       // redirect to sign-in
-      if (typeof window !== "undefined") window.location.href = "/auth/signin";
+      if (typeof window !== "undefined") window.location.href = "/login";
     } else if (res.status === 403) {
       // show toast
       if (typeof window !== "undefined") alert(msg); // swap for your toast system

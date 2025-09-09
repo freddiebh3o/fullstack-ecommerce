@@ -1,5 +1,5 @@
-// src/lib/tenant-bootstrap.ts
-import { db } from "@/lib/db";
+// src/lib/tenant/bootstrap.ts
+import { db } from "@/lib/db/prisma";
 
 export async function bootstrapTenant(tenantId: string, ownerUserId: string) {
   const keys = ["OWNER", "ADMIN", "EDITOR", "READONLY"] as const;

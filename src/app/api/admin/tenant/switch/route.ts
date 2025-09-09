@@ -1,8 +1,8 @@
 // src/app/api/admin/tenant/switch/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { authOptions } from "@/lib/auth/nextauth";
+import { db } from "@/lib/db/prisma";
 import { z } from "zod";
 
 const bodySchema = z.object({ tenantId: z.string().min(1) });

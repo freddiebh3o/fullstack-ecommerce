@@ -1,7 +1,7 @@
 // src/app/actions/perm.ts`
 "use server";
-import { can } from "@/lib/permissions";
-import { getCurrentTenantId } from "@/lib/tenant";
+import { can } from "@/lib/auth/permissions";
+import { getCurrentTenantId } from "@/lib/tenant/resolve";
 
 export async function canWriteCategory() {
   const tenantId = await getCurrentTenantId();

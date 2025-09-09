@@ -1,5 +1,5 @@
 // src/app/page.tsx
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import Image from "next/image";
 import SignOutButton from "@/components/auth/sign-out-button";
 

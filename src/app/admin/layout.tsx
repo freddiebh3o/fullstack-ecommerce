@@ -1,16 +1,16 @@
 // src/app/admin/layout.tsx
 import { ReactNode } from "react";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/auth/nextauth";
 import AdminSidebar from "@/components/admin/admin-sidebar";
 import AdminUserMenu from "@/components/admin/admin-user-menu";
 import AdminThemeProvider from "@/components/theme/admin-theme-provider";
 import ThemeToggle from "@/components/theme/theme-toggle";
 import { ToastProvider } from "@/components/ui/toast-provider";
-import { db } from "@/lib/db";
+import { db } from "@/lib/db/prisma";
 import TenantSwitcher from "@/components/admin/tenant-switcher";
 import TenantCookieGuard from "@/components/admin/TenantCookieGuard";
-import { getCurrentTenantId } from "@/lib/tenant";
+import { getCurrentTenantId } from "@/lib/tenant/resolve";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions);
