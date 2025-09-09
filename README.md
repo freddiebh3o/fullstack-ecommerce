@@ -326,6 +326,7 @@ node print-tree.mjs . "node_modules,.git,.next,dist" 5
 ## 📂 Directory Structure
 
 The project follows a standard **Next.js App Router** layout with additional folders for Prisma, scripts, and LocalStack configuration.
+```text
 +---.localstack
 |   +---cache
 |   |   +---machine.json
@@ -493,7 +494,7 @@ The project follows a standard **Next.js App Router** layout with additional fol
 +---print-tree.mjs
 +---README.md
 \---tsconfig.json
-
+```
 --- 
 
 ## ☁️ Hosting & Infrastructure Costs
