@@ -10,9 +10,9 @@ import { canManageMembers } from "@/app/actions/perm";
 type Member = {
   id: string;
   user: { id: string; email: string; name: string | null };
-  role: { id: string; key: "OWNER" | "ADMIN" | "EDITOR" | "READONLY"; name: string };
+  role: { id: string; key: string; name: string };
 };
-type Role = { id: string; key: "OWNER" | "ADMIN" | "EDITOR" | "READONLY"; name: string };
+type Role = { id: string; key: string; name: string };
 
 export default function MemberTable({ members, roles }: { members: Member[]; roles: Role[] }) {
   const router = useRouter();

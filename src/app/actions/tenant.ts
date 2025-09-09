@@ -7,18 +7,21 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth";
 import { db } from "@/lib/db/prisma";
 
+// 🔧 Use the same cookie name the resolver expects
+const TENANT_COOKIE = "x-current-tenant-id";
+
 /**
- * Ensure the "tenantId" cookie equals the desired value.
+ * Ensure the tenant cookie equals the desired value.
  * No-op if it's already correct. Revalidates only when it changes.
  */
 export async function ensureTenantCookie(desiredTenantId: string | null) {
   if (!desiredTenantId) return { changed: false };
 
   const cookieStore = await cookies();
-  const current = cookieStore.get("tenantId")?.value || null;
+  const current = cookieStore.get(TENANT_COOKIE)?.value || null;
   if (current === desiredTenantId) return { changed: false };
 
-  cookieStore.set("tenantId", desiredTenantId, { path: "/" });
+  cookieStore.set(TENANT_COOKIE, desiredTenantId, { path: "/" });
   // Revalidate admin shell so server components refetch with new cookie (if relevant)
   revalidatePath("/admin", "layout");
   return { changed: true };
@@ -42,7 +45,8 @@ export async function setCurrentTenant(tenantId: string) {
   }
 
   const cookieStore = await cookies();
-  cookieStore.set("tenantId", tenantId, { path: "/" });
+  cookieStore.set(TENANT_COOKIE, tenantId, { path: "/" });
+
   // Revalidate admin pages so server components refetch with the new tenant
   revalidatePath("/admin", "layout");
   revalidatePath("/admin"); // index

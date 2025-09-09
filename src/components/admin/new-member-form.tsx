@@ -13,12 +13,12 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 const schema = z.object({
   email: z.string().email(),
   name: z.string().trim().optional(),
-  roleKey: z.enum(["OWNER", "ADMIN", "EDITOR", "READONLY"]),
+  roleKey: z.string().min(2),
   password: z.string().min(8).optional(),
 });
 type FormValues = z.input<typeof schema>;
 
-export default function NewMemberForm({ roles }: { roles: { key: "OWNER"|"ADMIN"|"EDITOR"|"READONLY"; name: string }[] }) {
+export default function NewMemberForm({ roles }: { roles: { key: string; name: string }[] }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 

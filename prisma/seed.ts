@@ -83,6 +83,7 @@ async function main() {
     permCategoryRead,
     permBrandRead,
     permMemberRead,
+    permRoleManage,
   ] = await Promise.all([
     upsertPerm("product.read",   "Read products"),
     upsertPerm("product.write",  "Create/update/delete products"), // 2
@@ -92,6 +93,7 @@ async function main() {
     upsertPerm("member.manage",  "Manage tenant members"),
     upsertPerm("category.read",  "Read categories"),
     upsertPerm("member.read",    "Read members"),
+    upsertPerm("role.manage",    "Create/update/delete roles and assign permissions"),
   ]);
 
   console.log("perm map:", {
@@ -103,6 +105,7 @@ async function main() {
     permCategoryRead: "category.read",
     permBrandRead: "brand.read",
     permMemberRead: "member.read",
+    permRoleManage: "role.manage",
   });
 
   // 3) Tenants
@@ -236,11 +239,13 @@ async function main() {
     // OWNER & ADMIN → full read + full write
     await assign(tOwner?.id, [
       permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
-      permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id,
+      permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id, 
+      permRoleManage.id,
     ]);
     await assign(tAdmin?.id, [
       permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
       permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id,
+      permRoleManage.id,
     ]);
 
     // EDITOR → full read + all writes except members

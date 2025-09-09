@@ -7,15 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- Existing generator/datasource unchanged ---
-
-enum RoleKey {
-  OWNER
-  ADMIN
-  EDITOR
-  READONLY
-}
-
 model Tenant {
   id               String            @id @default(cuid())
   name             String
@@ -77,9 +68,11 @@ model Membership {
 
 model Role {
   id          String                 @id @default(cuid())
-  tenantId    String? // null => system default role template
-  key         RoleKey
+  tenantId    String?                // null => system default role template
+  key         String                 // free-form key (e.g. "catalog-manager")
   name        String
+  builtin     Boolean                @default(true)
+  description String?
   tenant      Tenant?                @relation(fields: [tenantId], references: [id])
   permissions PermissionAssignment[]
   memberships Membership[]

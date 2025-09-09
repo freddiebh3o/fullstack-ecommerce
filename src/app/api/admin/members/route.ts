@@ -8,7 +8,7 @@ import { audit } from "@/lib/audit/audit";
 const postSchema = z.object({
   email: z.string().email(),
   name: z.string().trim().optional(),
-  roleKey: z.enum(["OWNER", "ADMIN", "EDITOR", "READONLY"]),
+  roleKey: z.string().min(2),
   password: z.string().min(8).optional(),
 });
 

@@ -6,7 +6,7 @@ import { withTenantPermission } from "@/lib/auth/guards/api";
 import { audit } from "@/lib/audit/audit";
 
 const patchSchema = z.object({
-  roleKey: z.enum(["OWNER", "ADMIN", "EDITOR", "READONLY"]),
+  roleKey: z.string().min(2),
 });
 
 // Helper: can the current user assign OWNER in this tenant?
@@ -26,7 +26,7 @@ async function ensureNotDemotingLastOwner(
   db: PrismaClient,
   tenantId: string,
   membershipId: string,
-  newRoleKey?: "OWNER" | "ADMIN" | "EDITOR" | "READONLY"
+  newRoleKey?: string
 ) {
   if (!newRoleKey || newRoleKey === "OWNER") return;
   const target = await db.membership.findFirst({
