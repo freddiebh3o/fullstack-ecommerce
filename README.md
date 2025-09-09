@@ -853,6 +853,40 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ### 🚧 Planned Epics
 
+#### Epic: Tenant Admin Branding
+
+**Scope:** Controls the look & feel of the **admin panel only**. Storefront identity (logos, themes, CMS content) will be a **future epic**.
+
+**Features (RBAC: OWNER/ADMIN only)**  
+- [ ] Tenant can upload an **admin logo** (shown in sidebar/header).  
+- [ ] Tenant can configure **admin theme colors** (accent, sidebar, background, etc).  
+- [ ] Branding settings stored per-tenant in the database.  
+- [ ] Admin UI loads tenant branding automatically on login/tenant switch.  
+- [ ] Changes apply instantly across the admin panel (via theme provider/context).  
+- [ ] Safeguards: only OWNER/ADMIN roles can update branding.  
+- [ ] Fallback to default theme if tenant branding not configured.  
+- [ ] Audit log entries for branding updates (who changed what, when).  
+
+#### Epic: Storefront CMS & Branding
+
+**Scope:** Allows tenant OWNER/ADMIN users to customize their public-facing storefront with branding and content.
+
+**Features (RBAC: OWNER/ADMIN only)**  
+- [ ] Upload **storefront logo** and **favicon**.  
+- [ ] Configure **brand colors**, typography, and theme tokens for storefront.  
+- [ ] Manage **homepage content** (hero, banners, featured products).  
+- [ ] Manage **CMS pages** (About, Contact, FAQs, etc).  
+- [ ] Assets stored under `tenants/<tenantId>/storefront/...` in S3.  
+- [ ] Storefront dynamically applies tenant branding and content at runtime.  
+- [ ] (Optional later) Custom domains or subdomains per tenant (`tenant.example.com`).  
+
+#### Epic: Branches/Locations
+- [ ] Add `Branch` model linked to tenant.  
+- [ ] Products can be branch-specific (optional).  
+- [ ] Orders can select branch for fulfillment.  
+- [ ] Customers can have preferred branch.  
+- [ ] Feature flag per tenant/plan.  
+
 #### Epic: Product Media & Details
 - [ ] Admins can upload multiple images for a product, reorder them, and set alt text.
 - [ ] Admins can delete a product image.
@@ -902,19 +936,6 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [ ] Export tenant data (JSON/CSV).
 - [ ] Rate-limit sensitive ops per tenant.
 - [ ] Cannot delete categories with products unless reassigning.
-
-#### Epic: Tenant Branding & Storefront Identity
-- [ ] Tenant can upload logo, set brand colors, override theme tokens.
-- [ ] Admin header shows tenant logo; storefront applies same tokens.
-- [ ] Assets stored under `tenants/<tenantId>/…` in S3.
-- [ ] (Optional) Subdomain/path routing per tenant.
-
-#### Epic: Branches/Locations
-- [ ] Add `Branch` model linked to tenant.  
-- [ ] Products can be branch-specific (optional).  
-- [ ] Orders can select branch for fulfillment.  
-- [ ] Customers can have preferred branch.  
-- [ ] Feature flag per tenant/plan.  
 
 ---
 
