@@ -836,8 +836,6 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [x] Quick Links respect permission checks.  
 - [x] Cards/UI styled with Tailwind + shadcn components.  
 
----
-
 #### Epic: Catalog Structure
 - [x] Admins can create brands (name, slug, logo, description, website).  
   - [x] Brands table with search + pagination  
@@ -872,17 +870,23 @@ This section tracks which larger feature areas (Epics) have already been integra
 **Scope:** Allow tenant OWNER/ADMIN users (and system-level Admin/Superadmin) to define custom roles with fine-grained permissions, beyond the default seeded roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).
 
 **Features (RBAC: OWNER/ADMIN/system only)**  
-- [ ] Add `CustomRole` model linked to tenant.  
-- [ ] UI for creating/editing custom roles with name + description.  
-- [ ] Assign a set of permissions (checkboxes: `product.read`, `product.write`, `category.write`, etc).  
-- [ ] Custom roles appear alongside default roles in role selectors.  
-- [ ] Members can be assigned custom roles the same way as defaults.  
-- [ ] Safeguards:  
-  - Cannot remove all access (at least one permission required).  
-  - Last `OWNER` safeguard still applies.  
-  - System Admin/Superadmin can always override.  
-- [ ] Audit logs for role creation, update, and assignment.  
-- [ ] (Optional later) Role cloning — copy permissions from an existing role.  
+- [x] Add `CustomRole` model linked to tenant.  
+- [x] API routes for roles CRUD (list, create, update, delete).  
+- [x] UI for listing roles with permissions and member counts.  
+- [x] UI for creating/editing custom roles with name + description.  
+- [x] Assign a set of permissions (checkboxes: `product.read`, `product.write`, `category.write`, etc).  
+- [x] Custom roles appear alongside default roles in role selectors.  
+- [x] Members can be assigned custom roles the same way as defaults.  
+- [x] Safeguards:  
+  - [x] Cannot remove all access (at least one permission required).  
+  - [x] Last `OWNER` safeguard still applies.  
+  - [x] System Admin/Superadmin can always override.  
+- [x] Audit logs for role creation, update, and assignment.  
+- [ ] (Optional later) Role cloning — copy permissions from an existing role..  
+
+#### Epic: Tenant Admin Branding
+
+**Scope:** Controls the look & feel of the **admin panel only**. Storefront identity (logos, themes, CMS content) will be a **future epic**.
 
 **Features (RBAC: OWNER/ADMIN only)**  
 - [ ] Tenant can upload an **admin logo** (shown in sidebar/header).  
