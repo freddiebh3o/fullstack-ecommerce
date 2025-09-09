@@ -853,9 +853,22 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ### 🚧 Planned Epics
 
-#### Epic: Tenant Admin Branding
+#### Epic: Custom Roles & Permissions
 
-**Scope:** Controls the look & feel of the **admin panel only**. Storefront identity (logos, themes, CMS content) will be a **future epic**.
+**Scope:** Allow tenant OWNER/ADMIN users (and system-level Admin/Superadmin) to define custom roles with fine-grained permissions, beyond the default seeded roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).
+
+**Features (RBAC: OWNER/ADMIN/system only)**  
+- [ ] Add `CustomRole` model linked to tenant.  
+- [ ] UI for creating/editing custom roles with name + description.  
+- [ ] Assign a set of permissions (checkboxes: `product.read`, `product.write`, `category.write`, etc).  
+- [ ] Custom roles appear alongside default roles in role selectors.  
+- [ ] Members can be assigned custom roles the same way as defaults.  
+- [ ] Safeguards:  
+  - Cannot remove all access (at least one permission required).  
+  - Last `OWNER` safeguard still applies.  
+  - System Admin/Superadmin can always override.  
+- [ ] Audit logs for role creation, update, and assignment.  
+- [ ] (Optional later) Role cloning — copy permissions from an existing role.  
 
 **Features (RBAC: OWNER/ADMIN only)**  
 - [ ] Tenant can upload an **admin logo** (shown in sidebar/header).  
