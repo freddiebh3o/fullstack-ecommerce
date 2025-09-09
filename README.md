@@ -457,23 +457,37 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |       +---spinner.tsx
 |   |       \---toast-provider.tsx
 |   +---lib
-|   |   +---api-ctx.ts
-|   |   +---api-response.ts
-|   |   +---audit.ts
-|   |   +---auth.ts
-|   |   +---client-fetch.ts
-|   |   +---db.ts
-|   |   +---page-guard.ts
-|   |   +---permissions.ts
-|   |   +---route-guard.ts
-|   |   +---s3.ts
-|   |   +---server-tenant.ts
-|   |   +---slug.ts
-|   |   +---system-guard.ts
-|   |   +---tenant-bootstrap.ts
-|   |   +---tenant-db.ts
-|   |   +---tenant.ts
-|   |   \---utils.ts
+|   |   +---api
+|   |   |   +---client.ts
+|   |   |   +---context.ts
+|   |   |   +---index.ts
+|   |   |   \---response.ts
+|   |   +---audit
+|   |   |   +---audit.ts
+|   |   |   \---index.ts
+|   |   +---auth
+|   |   |   +---guards
+|   |   |   |   +---api.ts
+|   |   |   |   +---page.ts
+|   |   |   |   \---system.ts
+|   |   |   +---index.ts
+|   |   |   +---nextauth.ts
+|   |   |   \---permissions.ts
+|   |   +---db
+|   |   |   +---index.ts
+|   |   |   +---prisma.ts
+|   |   |   \---tenant-db.ts
+|   |   +---storage
+|   |   |   +---index.ts
+|   |   |   \---s3.ts
+|   |   +---tenant
+|   |   |   +---bootstrap.ts
+|   |   |   +---index.ts
+|   |   |   \---resolve.ts
+|   |   \---utils
+|   |       +---index.ts
+|   |       +---misc.ts
+|   |       \---slug.ts
 |   +---styles
 |   |   +---admin-theme.css
 |   |   \---nprogress.css
@@ -1096,6 +1110,9 @@ node scripts/fix-roles.js
 - These commands are safe for local development.  
 - Running `reset` will erase **all data** in your local database.  
 - Always re-run `prisma generate` if you update `schema.prisma`.  
+```bash
+node print-tree.mjs . "node_modules,.git,.next,dist" 5
+```
 
 ---
 
