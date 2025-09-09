@@ -41,7 +41,8 @@ export default async function AdminBrandsPage() {
         ) : null}
       </div>
 
-      <BrandTable brands={brands} />
+      {/* pass boolean down */}
+      <BrandTable brands={brands as any} mayWrite={mayWrite} />
     </div>
   );
 }

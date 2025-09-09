@@ -1,4 +1,3 @@
-// src/app/admin/products/page.tsx
 import Link from "next/link";
 import { db } from "@/lib/db/prisma";
 import ProductTable from "@/components/admin/product-table";
@@ -44,7 +43,8 @@ export default async function AdminProductsListPage() {
         ) : null}
       </div>
 
-      <ProductTable products={products} />
+      {/* ✅ pass boolean down */}
+      <ProductTable products={products as any} mayWrite={mayWrite} />
     </div>
   );
 }

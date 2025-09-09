@@ -154,8 +154,7 @@ This project implements **row-level tenant isolation** and **role-based access c
 - **Server components**:
   - `ensurePagePermission("brand.write")`
   - `ensureAnyPagePermission(["member.read", "member.manage"])`
-- **Client components**:
-  - `<PermissionGate check={canWriteProduct}>...</PermissionGate>`
+
 
 ### Tenant Switching
 - Tenant is resolved via a signed cookie `x-current-tenant-id`.
@@ -440,7 +439,6 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   +---TenantCookieGuard.tsx
 |   |   |   \---user-table.tsx
 |   |   +---auth
-|   |   |   +---PermissionGate.tsx
 |   |   |   \---sign-out-button.tsx
 |   |   +---theme
 |   |   |   +---admin-theme-provider.tsx
@@ -780,7 +778,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 Enforce these in API routes with clear 400 errors when blocked.
 
 ### Authorization on the client (defense in depth)
-- Use PermissionGate + server actions (canWriteX, canManageMembers) to hide/disable UI controls.
+- Use Server actions (canWriteX, canManageMembers) to hide/disable UI controls.
 - Never rely on UI alone—server routes must still enforce permissions.
 
 ### Do / Don’t
@@ -862,7 +860,7 @@ This section tracks which larger feature areas (Epics) have already been integra
   - `product.write` required for create/edit/delete
 - [x] API routes protected with `withTenantPermission` / `withAnyTenantPermission`.
 - [x] Slug uniqueness enforced per tenant.
-- [x] Product table actions gated with `PermissionGate`.
+- [x] Product table actions gated with `PermissionGate` -> REMOVED.
 
 
 ### 🚧 Planned Epics

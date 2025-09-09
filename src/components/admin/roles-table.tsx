@@ -1,10 +1,9 @@
+// src/components/admin/roles-table.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useToast } from "@/components/ui/toast-provider";
-import PermissionGate from "@/components/auth/PermissionGate";
-import { canManageRoles } from "@/app/actions/perm";
 
 type Row = {
   id: string;
@@ -16,13 +15,20 @@ type Row = {
   members: number;
 };
 
-export default function RolesTable({ roles }: { roles: Row[] }) {
+export default function RolesTable({
+  roles,
+  mayManage,
+}: {
+  roles: Row[];
+  mayManage: boolean;
+}) {
   const router = useRouter();
   const { push: toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function handleDelete(id: string, name: string) {
+    if (!mayManage) return; // guard
     if (!confirm(`Delete role "${name}"? This cannot be undone.`)) return;
     setBusyId(id);
     try {
@@ -59,7 +65,9 @@ export default function RolesTable({ roles }: { roles: Row[] }) {
         </thead>
         <tbody>
           {roles.map((r) => {
-            const deleteDisabled = r.builtin || r.members > 0;
+            const deleteBlocked = r.builtin || r.members > 0;
+            const canDelete = mayManage && !deleteBlocked && busyId !== r.id && !isPending;
+
             return (
               <tr key={r.id} className="border-t">
                 <td className="px-4 py-3">
@@ -87,40 +95,37 @@ export default function RolesTable({ roles }: { roles: Row[] }) {
                 </td>
                 <td className="px-4 py-3">{r.members}</td>
                 <td className="px-4 py-3 text-right">
-                  <PermissionGate check={canManageRoles}>
-                    {(allowed) => (
-                      <div className="inline-flex items-center gap-2">
-                        <a
-                          href={allowed ? `/admin/roles/${r.id}/edit` : "#"}
-                          className={`underline hover:no-underline ${
-                            allowed ? "" : "pointer-events-none opacity-40"
-                          }`}
-                          aria-disabled={!allowed}
-                          title={allowed ? "Edit" : "You don’t have permission to edit"}
-                        >
-                          Edit
-                        </a>
-                        <button
-                          onClick={() => allowed && !deleteDisabled && handleDelete(r.id, r.name)}
-                          disabled={!allowed || deleteDisabled || busyId === r.id || isPending}
-                          className={`text-destructive underline hover:no-underline disabled:opacity-50 ${
-                            allowed && !deleteDisabled ? "" : "cursor-not-allowed"
-                          }`}
-                          title={
-                            !allowed
-                              ? "You don’t have permission to delete"
-                              : deleteDisabled
-                              ? r.builtin
-                                ? "Built-in roles cannot be deleted"
-                                : "Role has assigned members and cannot be deleted"
-                              : "Delete"
-                          }
-                        >
-                          {busyId === r.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
-                    )}
-                  </PermissionGate>
+                  <div className="inline-flex items-center gap-2">
+                    <a
+                      href={mayManage ? `/admin/roles/${r.id}/edit` : "#"}
+                      className={`underline hover:no-underline ${
+                        mayManage ? "" : "pointer-events-none opacity-40"
+                      }`}
+                      aria-disabled={!mayManage}
+                      title={mayManage ? "Edit" : "You don’t have permission to edit"}
+                    >
+                      Edit
+                    </a>
+
+                    <button
+                      onClick={() => canDelete && handleDelete(r.id, r.name)}
+                      disabled={!mayManage || deleteBlocked || busyId === r.id || isPending}
+                      className={`text-destructive underline hover:no-underline disabled:opacity-50 ${
+                        mayManage && !deleteBlocked ? "" : "cursor-not-allowed"
+                      }`}
+                      title={
+                        !mayManage
+                          ? "You don’t have permission to delete"
+                          : deleteBlocked
+                          ? r.builtin
+                            ? "Built-in roles cannot be deleted"
+                            : "Role has assigned members and cannot be deleted"
+                          : "Delete"
+                      }
+                    >
+                      {busyId === r.id ? "Deleting..." : "Delete"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             );

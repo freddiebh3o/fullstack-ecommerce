@@ -4,8 +4,6 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToast } from "@/components/ui/toast-provider";
-import PermissionGate from "@/components/auth/PermissionGate";
-import { canManageMembers } from "@/app/actions/perm";
 
 type Member = {
   id: string;
@@ -14,12 +12,21 @@ type Member = {
 };
 type Role = { id: string; key: string; name: string };
 
-export default function MemberTable({ members, roles }: { members: Member[]; roles: Role[] }) {
+export default function MemberTable({
+  members,
+  roles,
+  mayManage, // ✅ new prop
+}: {
+  members: Member[];
+  roles: Role[];
+  mayManage: boolean;
+}) {
   const router = useRouter();
   const { push: toast } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
 
   async function changeRole(membershipId: string, roleKey: Role["key"]) {
+    if (!mayManage) return;
     setBusy(membershipId);
     try {
       const res = await fetch(`/api/admin/members/${membershipId}`, {
@@ -46,6 +53,7 @@ export default function MemberTable({ members, roles }: { members: Member[]; rol
   }
 
   async function remove(membershipId: string) {
+    if (!mayManage) return;
     if (!confirm("Remove this member from the tenant?")) return;
     setBusy(membershipId);
     try {
@@ -85,35 +93,37 @@ export default function MemberTable({ members, roles }: { members: Member[]; rol
               <td className="px-4 py-3">{m.user.name ?? "—"}</td>
               <td className="px-4 py-3">{m.user.email}</td>
               <td className="px-4 py-3">
-                <PermissionGate check={canManageMembers}>
-                  {(allowed) => (
-                    <select
-                      className="rounded-md border bg-background px-2 py-1"
-                      value={m.role.key}
-                      onChange={(e) => allowed && changeRole(m.id, e.target.value as Role["key"])}
-                      disabled={!allowed || busy === m.id}
-                      title={allowed ? "Change role" : "You don’t have permission to manage members"}
-                    >
-                      {roles.map((r) => (
-                        <option key={r.id} value={r.key}>{r.name}</option>
-                      ))}
-                    </select>
-                  )}
-                </PermissionGate>
+                <select
+                  className="rounded-md border bg-background px-2 py-1"
+                  value={m.role.key}
+                  onChange={(e) => mayManage && changeRole(m.id, e.target.value as Role["key"])}
+                  disabled={!mayManage || busy === m.id}
+                  title={
+                    mayManage
+                      ? "Change role"
+                      : "You don’t have permission to manage members"
+                  }
+                >
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.key}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
               </td>
               <td className="px-4 py-3 text-right">
-                <PermissionGate check={canManageMembers}>
-                  {(allowed) => (
-                    <button
-                      onClick={() => allowed && remove(m.id)}
-                      className="text-destructive underline hover:no-underline disabled:opacity-50"
-                      disabled={!allowed || busy === m.id}
-                      title={allowed ? "Remove member" : "You don’t have permission to manage members"}
-                    >
-                      {busy === m.id ? "Removing..." : "Remove"}
-                    </button>
-                  )}
-                </PermissionGate>
+                <button
+                  onClick={() => mayManage && remove(m.id)}
+                  className="text-destructive underline hover:no-underline disabled:opacity-50"
+                  disabled={!mayManage || busy === m.id}
+                  title={
+                    mayManage
+                      ? "Remove member"
+                      : "You don’t have permission to manage members"
+                  }
+                >
+                  {busy === m.id ? "Removing..." : "Remove"}
+                </button>
               </td>
             </tr>
           ))}

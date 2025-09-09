@@ -1,3 +1,4 @@
+// src/app/admin/roles/page.tsx
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
 import { db } from "@/lib/db/prisma";
@@ -30,7 +31,7 @@ export default async function RolesPage() {
     members: r._count.memberships,
   }));
 
-  // (Redundant here since page already requires manage)
+  // Already required above, but keep for consistency if you relax the page guard later.
   const mayManage = await can("role.manage", tenantId);
 
   return (
@@ -42,7 +43,8 @@ export default async function RolesPage() {
         ) : null}
       </div>
 
-      <RolesTable roles={rows} />
+      {/* pass the boolean down */}
+      <RolesTable roles={rows} mayManage={mayManage} />
     </div>
   );
 }

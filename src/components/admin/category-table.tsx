@@ -4,8 +4,6 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { useToast } from "../ui/toast-provider";
-import PermissionGate from "@/components/auth/PermissionGate";
-import { canWriteCategory } from "@/app/actions/perm";
 
 type Row = {
   id: string;
@@ -22,13 +20,20 @@ const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
 });
 
-export default function CategoryTable({ categories }: { categories: Row[] }) {
+export default function CategoryTable({
+  categories,
+  mayWrite,               // ✅ new prop
+}: {
+  categories: Row[];
+  mayWrite: boolean;
+}) {
   const router = useRouter();
   const { push: toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function handleDelete(id: string, name: string) {
+    if (!mayWrite) return; // guard
     if (!confirm(`Delete "${name}"? This will detach products from it.`)) return;
     setBusyId(id);
     try {
@@ -38,7 +43,6 @@ export default function CategoryTable({ categories }: { categories: Row[] }) {
         const body = await res.json();
         if (body?.error?.message) msg = body.error.message;
       } catch {
-        // fall back to text for non-JSON responses
         try { msg = await res.text(); } catch {}
       }
       if (!res.ok) {
@@ -72,32 +76,28 @@ export default function CategoryTable({ categories }: { categories: Row[] }) {
               <td className="px-4 py-3">{c._count.products}</td>
               <td className="px-4 py-3">{DATE_FMT.format(new Date(c.createdAt))}</td>
               <td className="px-4 py-3 text-right">
-                <PermissionGate check={canWriteCategory}>
-                  {(allowed) => (
-                    <div className="inline-flex items-center gap-2">
-                      <a
-                        href={allowed ? `/admin/categories/${c.id}/edit` : "#"}
-                        className={`underline hover:no-underline ${
-                          allowed ? "" : "pointer-events-none opacity-40"
-                        }`}
-                        aria-disabled={!allowed}
-                        title={allowed ? "Edit" : "You don’t have permission to edit"}
-                      >
-                        Edit
-                      </a>
-                      <button
-                        onClick={() => allowed && handleDelete(c.id, c.name)}
-                        disabled={!allowed || busyId === c.id || isPending}
-                        className={`text-destructive underline hover:no-underline disabled:opacity-50 ${
-                          allowed ? "" : "cursor-not-allowed"
-                        }`}
-                        title={allowed ? "Delete" : "You don’t have permission to delete"}
-                      >
-                        {busyId === c.id ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
-                  )}
-                </PermissionGate>
+                <div className="inline-flex items-center gap-2">
+                  <a
+                    href={mayWrite ? `/admin/categories/${c.id}/edit` : "#"}
+                    className={`underline hover:no-underline ${
+                      mayWrite ? "" : "pointer-events-none opacity-40"
+                    }`}
+                    aria-disabled={!mayWrite}
+                    title={mayWrite ? "Edit" : "You don’t have permission to edit"}
+                  >
+                    Edit
+                  </a>
+                  <button
+                    onClick={() => handleDelete(c.id, c.name)}
+                    disabled={!mayWrite || busyId === c.id || isPending}
+                    className={`text-destructive underline hover:no-underline disabled:opacity-50 ${
+                      mayWrite ? "" : "cursor-not-allowed"
+                    }`}
+                    title={mayWrite ? "Delete" : "You don’t have permission to delete"}
+                  >
+                    {busyId === c.id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

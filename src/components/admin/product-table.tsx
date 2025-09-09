@@ -4,8 +4,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/ui/toast-provider";
-import PermissionGate from "@/components/auth/PermissionGate";
-import { canWriteProduct } from "@/app/actions/perm";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -31,13 +29,20 @@ type ProductRow = {
   images: { id: string; url: string }[];
 };
 
-export default function ProductTable({ products }: { products: ProductRow[] }) {
+export default function ProductTable({
+  products,
+  mayWrite, // ✅ new prop
+}: {
+  products: ProductRow[];
+  mayWrite: boolean;
+}) {
   const router = useRouter();
   const { push: toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function handleDelete(id: string, name: string) {
+    if (!mayWrite) return;
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     setBusyId(id);
     try {
@@ -48,11 +53,7 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
         const body = await res.json();
         if (body?.error?.message) msg = body.error.message;
       } catch {
-        try {
-          msg = await res.text();
-        } catch {
-          // ignore
-        }
+        try { msg = await res.text(); } catch {}
       }
 
       if (!res.ok) {
@@ -94,35 +95,32 @@ export default function ProductTable({ products }: { products: ProductRow[] }) {
               <td className="px-4 py-3">{p.stock ?? 0}</td>
               <td className="px-4 py-3">{DATE_FMT.format(new Date(p.createdAt))}</td>
               <td className="px-4 py-3 text-right">
-                <PermissionGate check={canWriteProduct}>
-                  {(allowed) => (
-                    <div className="inline-flex items-center gap-2">
-                      <a
-                        href={allowed ? `/admin/products/${p.id}/edit` : "#"}
-                        className={`underline hover:no-underline ${allowed ? "" : "pointer-events-none opacity-40"}`}
-                        aria-disabled={!allowed}
-                        title={allowed ? "Edit" : "You don’t have permission to edit"}
-                      >
-                        Edit
-                      </a>
-                      <button
-                        onClick={() => allowed && handleDelete(p.id, p.name)}
-                        disabled={!allowed || busyId === p.id || isPending}
-                        className={`text-destructive underline hover:no-underline disabled:opacity-50 ${allowed ? "" : "cursor-not-allowed"}`}
-                        title={allowed ? "Delete" : "You don’t have permission to delete"}
-                      >
-                        {busyId === p.id ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
-                  )}
-                </PermissionGate>
+                <div className="inline-flex items-center gap-2">
+                  <a
+                    href={mayWrite ? `/admin/products/${p.id}/edit` : "#"}
+                    className={`underline hover:no-underline ${mayWrite ? "" : "pointer-events-none opacity-40"}`}
+                    aria-disabled={!mayWrite}
+                    title={mayWrite ? "Edit" : "You don’t have permission to edit"}
+                  >
+                    Edit
+                  </a>
+                  <button
+                    onClick={() => mayWrite && handleDelete(p.id, p.name)}
+                    disabled={!mayWrite || busyId === p.id || isPending}
+                    className={`text-destructive underline hover:no-underline disabled:opacity-50 ${
+                      mayWrite ? "" : "cursor-not-allowed"
+                    }`}
+                    title={mayWrite ? "Delete" : "You don’t have permission to delete"}
+                  >
+                    {busyId === p.id ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
 
           {products.length === 0 && (
             <tr>
-              {/* 7 columns total (including Actions) */}
               <td className="px-4 py-10 text-center text-muted-foreground" colSpan={7}>
                 No products yet.
               </td>

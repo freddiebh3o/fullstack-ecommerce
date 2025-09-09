@@ -43,7 +43,7 @@ export default async function AdminCategoriesPage() {
         ) : null}
       </div>
 
-      <CategoryTable categories={categories} />
+      <CategoryTable categories={categories} mayWrite={mayWrite} />
     </div>
   );
 }

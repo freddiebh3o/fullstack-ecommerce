@@ -5,7 +5,6 @@ import { ensureAnyPagePermission, ensurePagePermission } from "@/lib/auth/guards
 import MemberTable from "@/components/admin/member-table";
 
 export default async function MembersPage() {
-  // Allow read OR manage to view the page
   const perm = await ensureAnyPagePermission(["member.read", "member.manage"]);
   if (!perm.allowed) return <ForbiddenPage />;
 
@@ -36,7 +35,8 @@ export default async function MembersPage() {
         {mayManage ? <a className="underline" href="/admin/members/new">Add member</a> : null}
       </div>
 
-      <MemberTable members={members as any} roles={roles as any} />
+      {/* ✅ pass mayManage */}
+      <MemberTable members={members as any} roles={roles as any} mayManage={mayManage} />
     </div>
   );
 }
