@@ -883,7 +883,7 @@ This section tracks which larger feature areas (Epics) have already been integra
   - [x] Last `OWNER` safeguard still applies.  
   - [x] System Admin/Superadmin can always override.  
 - [x] Audit logs for role creation, update, and assignment.  
-- [ ] (Optional later) Role cloning — copy permissions from an existing role..  
+- [x] (Optional later) Role cloning — copy permissions from an existing role..  
 
 #### Epic: Tenant Admin Branding
 
