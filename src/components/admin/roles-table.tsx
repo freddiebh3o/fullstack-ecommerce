@@ -97,6 +97,14 @@ export default function RolesTable({
                 <td className="px-4 py-3 text-right">
                   <div className="inline-flex items-center gap-2">
                     <a
+                      href={`/admin/roles/new?source=${r.id}`}
+                      className="underline hover:no-underline"
+                      title="Clone (prefill from this role)"
+                    >
+                      Clone
+                    </a>
+                    
+                    <a
                       href={mayManage ? `/admin/roles/${r.id}/edit` : "#"}
                       className={`underline hover:no-underline ${
                         mayManage ? "" : "pointer-events-none opacity-40"
