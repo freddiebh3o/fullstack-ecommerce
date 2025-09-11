@@ -61,6 +61,16 @@ export const PATCH = async (req: Request, { params }: { params: Promise<{ id: st
   const role = await db.role.findFirst({ where: { id, tenantId } });
   if (!role) return error(404, "NOT_FOUND", "Role not found");
 
+  const BUILTIN_KEYS = new Set(["OWNER", "ADMIN", "EDITOR", "READONLY"]);
+  const isBuiltinCore = role.builtin && BUILTIN_KEYS.has(role.key);
+  if (isBuiltinCore && parsed.data.permissionKeys) {
+    return error(
+      403,
+      "FORBIDDEN",
+      "Permissions of built-in roles cannot be modified."
+    );
+  }
+
   const updates: { name?: string; description?: string | null } = {};
   if (typeof parsed.data.name === "string") updates.name = parsed.data.name;
   if ("description" in parsed.data) updates.description = parsed.data.description ?? null;
@@ -129,6 +139,19 @@ export const DELETE = async (_req: Request, { params }: { params: Promise<{ id: 
   if (role.builtin) return error(403, "FORBIDDEN", "Built-in roles cannot be deleted");
   if (role._count.memberships > 0) {
     return error(409, "CONFLICT", "Cannot delete a role that is assigned to members");
+  }
+
+  if (role.key === "OWNER") {
+    const ownerCount = await db.membership.count({
+      where: { tenantId, role: { key: "OWNER" } },
+    });
+    if (ownerCount > 0) {
+      return error(
+        409,
+        "CONFLICT",
+        "Cannot delete the OWNER role."
+      );
+    }
   }
 
   try {

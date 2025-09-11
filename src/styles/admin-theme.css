@@ -1,46 +1,28 @@
-/* Admin-only theme overrides:
-   Edit these values to change the entire admin look.
-   They override the base vars you already have in globals.css.
-*/
+/* Alias old var names to new ones to avoid mass refactors (optional) */
+[data-admin]{
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-text);
+  --ring: var(--color-ring);
+  --card: var(--color-card);
+  --card-foreground: var(--color-text);
+  --sidebar: var(--color-sidebar);
+}
+.dark [data-admin]{
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-text);
+  --ring: var(--color-ring);
+  --card: var(--color-card);
+  --card-foreground: var(--color-text);
+  --sidebar: var(--color-sidebar);
+}
 
-/* Brand tokens (OKLCH is already used in your globals) */
-[data-admin] {
-    /* tweak brand once; it flows everywhere */
-    --brand-l: 0.60;   /* lightness 0–1 */
-    --brand-c: 0.20;   /* chroma 0–~0.4 */
-    --brand-h: 260;    /* hue in degrees */
-  
-    /* Map brand to primary + rings, etc. */
-    --primary: oklch(var(--brand-l) var(--brand-c) var(--brand-h));
-    --primary-foreground: oklch(0.985 0 0);
-    --ring: oklch(calc(var(--brand-l) + 0.10) calc(var(--brand-c) - 0.05) var(--brand-h));
-  
-    /* Surface tuning (optional) */
-    --radius: 0.75rem;                /* global rounding for shadcn */
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --sidebar: oklch(0.985 0 0);
-  
-    /* Charts (optional) */
-    --chart-1: oklch(0.68 0.20 260);
-    --chart-2: oklch(0.66 0.14 190);
-    --chart-3: oklch(0.40 0.07 230);
-    --chart-4: oklch(0.82 0.19 85);
-    --chart-5: oklch(0.77 0.18 70);
-  }
-  
-  /* Dark mode adjustments for admin */
-  .dark [data-admin] {
-    --brand-l: 0.62;
-    --brand-c: 0.18;
-  
-    --primary: oklch(var(--brand-l) var(--brand-c) var(--brand-h));
-    --primary-foreground: oklch(0.205 0 0);
-    --ring: oklch(calc(var(--brand-l) - 0.10) calc(var(--brand-c) - 0.06) var(--brand-h));
-  
-    /* Optional darker surfaces */
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --sidebar: oklch(0.205 0 0);
-  }
-  
+/* Admin-only colorful card headers driven by tokens */
+/* [data-admin] [data-slot="card-header"] {
+  background: var(--card);
+  color: var(--color-primary-foreground);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-primary), black 12%);
+}
+
+[data-admin] [data-slot="card-description"] {
+  color: var(--color-surface);
+} */

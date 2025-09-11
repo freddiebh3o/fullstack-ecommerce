@@ -355,6 +355,14 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   \---migration.sql
 |   |   +---20250907213354_add_audit_log
 |   |   |   \---migration.sql
+|   |   +---20250909204415_custom_roles
+|   |   |   \---migration.sql
+|   |   +---20250909204658_new_custom_roles
+|   |   |   \---migration.sql
+|   |   +---20250909205450_more_custom_roles
+|   |   |   \---migration.sql
+|   |   +---20250910203801_add_tenant_branding
+|   |   |   \---migration.sql
 |   |   \---migration_lock.toml
 |   +---schema.prisma
 |   \---seed.ts
@@ -375,6 +383,8 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   +---perm.ts
 |   |   |   \---tenant.ts
 |   |   +---admin
+|   |   |   +---branding
+|   |   |   |   \---page.tsx
 |   |   |   +---brands
 |   |   |   |   +---[id]
 |   |   |   |   +---new
@@ -390,6 +400,10 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   |   +---[id]
 |   |   |   |   +---new
 |   |   |   |   \---page.tsx
+|   |   |   +---roles
+|   |   |   |   +---[id]
+|   |   |   |   +---new
+|   |   |   |   \---page.tsx
 |   |   |   +---users
 |   |   |   |   +---[id]
 |   |   |   |   +---new
@@ -399,10 +413,12 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   \---page.tsx
 |   |   +---api
 |   |   |   +---admin
+|   |   |   |   +---branding
 |   |   |   |   +---brands
 |   |   |   |   +---categories
 |   |   |   |   +---members
 |   |   |   |   +---products
+|   |   |   |   +---roles
 |   |   |   |   +---tenant
 |   |   |   |   +---uploads
 |   |   |   |   \---users
@@ -421,6 +437,7 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   +---brand-search.tsx
 |   |   |   +---brand-select.tsx
 |   |   |   +---brand-table.tsx
+|   |   |   +---branding-theme-form.tsx
 |   |   |   +---category-select.tsx
 |   |   |   +---category-table.tsx
 |   |   |   +---edit-brand-form.tsx
@@ -435,6 +452,8 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   +---new-product-form.tsx
 |   |   |   +---new-user-form.tsx
 |   |   |   +---product-table.tsx
+|   |   |   +---role-form.tsx
+|   |   |   +---roles-table.tsx
 |   |   |   +---tenant-switcher.tsx
 |   |   |   +---TenantCookieGuard.tsx
 |   |   |   \---user-table.tsx
@@ -442,6 +461,7 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   \---sign-out-button.tsx
 |   |   +---theme
 |   |   |   +---admin-theme-provider.tsx
+|   |   |   +---scoped-admin-branding.tsx
 |   |   |   \---theme-toggle.tsx
 |   |   \---ui
 |   |       +---button.tsx
@@ -471,6 +491,10 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   +---index.ts
 |   |   |   +---nextauth.ts
 |   |   |   \---permissions.ts
+|   |   +---branding
+|   |   |   +---css-vars.ts
+|   |   |   +---defaults.ts
+|   |   |   \---get-branding.ts
 |   |   +---db
 |   |   |   +---index.ts
 |   |   |   +---prisma.ts
@@ -480,6 +504,7 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   \---s3.ts
 |   |   +---tenant
 |   |   |   +---bootstrap.ts
+|   |   |   +---branding.ts
 |   |   |   +---index.ts
 |   |   |   \---resolve.ts
 |   |   \---utils

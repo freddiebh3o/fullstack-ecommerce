@@ -23,7 +23,7 @@ async function allowed(session: any, tenantId: string) {
   return can("role.manage", tenantId);
 }
 
-export const GET = async () => {
+export const GET = async (_req: Request, { params }: { params: { id: string } }) => {
   const session = await getServerSession(authOptions);
   if (!session) return error(401, "UNAUTHENTICATED", "You must be signed in");
   const { db, tenantId } = await tenantDb();

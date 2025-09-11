@@ -2,6 +2,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { bootstrapTenant } from "../src/lib/tenant/bootstrap";
+import { DEFAULT_THEME } from "../src/lib/branding/defaults";
 
 const prisma = new PrismaClient();
 
@@ -58,6 +59,18 @@ async function upsertProductByTenantSlug(
   return prisma.product.create({ data: { tenantId, slug, ...data } });
 }
 
+async function ensureBranding(tenantId: string) {
+  await prisma.tenantBranding.upsert({
+    where: { tenantId },
+    update: {}, // keep whatever is there
+    create: {
+      tenantId,
+      logoUrl: DEFAULT_THEME.logoUrl ?? null,
+      theme: DEFAULT_THEME,
+    },
+  });
+}
+
 async function main() {
   // 1) Plans
   const pro = await prisma.plan.upsert({
@@ -76,7 +89,7 @@ async function main() {
 
   const [
     permProdRead,
-    permProdWrite, 
+    permProdWrite,
     permBrandWrite,
     permCategoryWrite,
     permMemberManage,
@@ -84,16 +97,20 @@ async function main() {
     permBrandRead,
     permMemberRead,
     permRoleManage,
+    permBrandingRead,
+    permBrandingWrite,
   ] = await Promise.all([
     upsertPerm("product.read",   "Read products"),
-    upsertPerm("product.write",  "Create/update/delete products"), // 2
-    upsertPerm("brand.write",    "Create/update/delete brands"),   // 3
-    upsertPerm("brand.read",     "Read brands"),
+    upsertPerm("product.write",  "Create/update/delete products"),
+    upsertPerm("brand.write",    "Create/update/delete brands"),
     upsertPerm("category.write", "Create/update/delete categories"),
     upsertPerm("member.manage",  "Manage tenant members"),
     upsertPerm("category.read",  "Read categories"),
+    upsertPerm("brand.read",     "Read brands"),
     upsertPerm("member.read",    "Read members"),
     upsertPerm("role.manage",    "Create/update/delete roles and assign permissions"),
+    upsertPerm("branding.read",  "Read admin branding"),
+    upsertPerm("branding.write", "Update admin branding"),
   ]);
 
   console.log("perm map:", {
@@ -106,6 +123,8 @@ async function main() {
     permBrandRead: "brand.read",
     permMemberRead: "member.read",
     permRoleManage: "role.manage",
+    permBrandingRead: "branding.read",
+    permBrandingWrite: "branding.write",
   });
 
   // 3) Tenants
@@ -150,7 +169,7 @@ async function main() {
     where: { email: "editor+default@example.com" },
     update: {},
     create: { email: "editor+default@example.com", name: "Default Editor", role: "USER", passwordHash: await bcrypt.hash("Editor123!", 10) },
-});
+  });
   const aRO     = await prisma.user.upsert({
     where: { email: "ro+default@example.com" },
     update: {},
@@ -186,6 +205,9 @@ async function main() {
   await bootstrapTenant(tenantB.id, admin.id);
   await bootstrapTenant(tenantB.id, superadmin.id);
   await bootstrapTenant(tenantB.id, bOwner.id);
+
+  await ensureBranding(tenantA.id);
+  await ensureBranding(tenantB.id);
 
   // 6) Assign tenant roles for the remaining per-tenant users
   async function getTenantRoles(tenantId: string) {
@@ -236,27 +258,28 @@ async function main() {
       });
     };
 
-    // OWNER & ADMIN → full read + full write
     await assign(tOwner?.id, [
       permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
-      permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id, 
+      permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id,
       permRoleManage.id,
+      permBrandingRead.id, permBrandingWrite.id,
     ]);
     await assign(tAdmin?.id, [
       permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
       permProdWrite.id, permBrandWrite.id, permCategoryWrite.id, permMemberManage.id,
       permRoleManage.id,
+      permBrandingRead.id, permBrandingWrite.id,
     ]);
 
-    // EDITOR → full read + all writes except members
     await assign(tEditor?.id, [
       permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
       permProdWrite.id, permBrandWrite.id, permCategoryWrite.id,
+      permBrandingRead.id,
     ]);
 
-    // READONLY → read only
     await assign(tRO?.id, [
       permProdRead.id, permBrandRead.id, permCategoryRead.id, permMemberRead.id,
+      permBrandingRead.id,
     ]);
   }
 

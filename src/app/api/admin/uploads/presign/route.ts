@@ -13,7 +13,7 @@ const bodySchema = z.object({
   filename: z.string().min(1),
   contentType: z.enum(["image/jpeg", "image/png", "image/webp", "image/avif"]),
   byteLength: z.number().int().positive().max(10 * 1024 * 1024), // 10 MB
-  scope: z.enum(["products", "categories", "brands"]),
+  scope: z.enum(["products", "categories", "brands", "branding"]),
   entityId: z.string().min(1),
 });
 
@@ -43,7 +43,13 @@ export async function POST(req: Request) {
 
   // sanitize extension
   const ext = (filename.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
-  const key = `tenants/${tenantId}/${scope}/${entityId}/${crypto.randomUUID()}.${ext}`;
+
+  const basePath =
+    scope === "branding"
+      ? `tenants/${tenantId}/branding/${entityId}`
+      : `tenants/${tenantId}/${scope}/${entityId}`;
+
+  const key = `${basePath}/${crypto.randomUUID()}.${ext}`;
 
   const bucket =
     process.env.S3_BUCKET ||

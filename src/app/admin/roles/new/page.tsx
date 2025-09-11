@@ -4,41 +4,60 @@ import { ensurePagePermission } from "@/lib/auth/guards/page";
 import { db } from "@/lib/db/prisma";
 import RoleForm from "@/components/admin/role-form";
 
+type SearchParams = Record<string, string | string[] | undefined>;
+
 export default async function NewRolePage({
   searchParams,
-}: { searchParams?: { source?: string } }) {
+}: {
+  searchParams: Promise<SearchParams>; // Next 15: this is a Promise
+}) {
   const perm = await ensurePagePermission("role.manage");
   if (!perm.allowed) return <ForbiddenPage />;
 
-  const permissions = await db.permission.findMany({
-    orderBy: { key: "asc" },
-    select: { key: true, name: true },
-  });
-
   const { tenantId } = perm;
 
-  // Load catalog of all permissions (for the checkbox list)
+  // Load catalog of permissions (global in your current Prisma client)
   const allPerms = await db.permission.findMany({
-    select: { id: true, key: true, name: true },
+    select: { key: true, name: true },
     orderBy: { key: "asc" },
   });
 
+  // Await searchParams FIRST, then safely read ?source
+  const sp = await searchParams;
+  const rawSource = sp?.source;
+  const sourceId =
+    typeof rawSource === "string"
+      ? rawSource
+      : Array.isArray(rawSource)
+      ? rawSource[0]
+      : undefined;
+
+  // Defaults for cloning (when ?source=<roleId> is present and found)
   let defaults:
-    | { name?: string; key?: string; description?: string | null; permissionKeys?: string[] }
+    | {
+        name?: string;
+        key?: string;
+        description?: string | null;
+        permissionKeys?: string[];
+      }
     | undefined;
 
-  if (searchParams?.source) {
+  if (sourceId) {
     const src = await db.role.findFirst({
-      where: { id: searchParams.source, tenantId },
-      include: { permissions: { select: { permission: { select: { key: true } } } } },
+      where: { id: sourceId, tenantId },
+      include: {
+        permissions: {
+          select: { permission: { select: { key: true } } },
+        },
+      },
     });
 
     if (src) {
       defaults = {
         name: `${src.name} (copy)`,
-        key: "",
+        key: "", // leave empty so the form can auto-generate via name blur
         description: src.description ?? null,
-        permissionKeys: src.permissions.map(p => p.permission.key),
+        permissionKeys: src.permissions.map((p) => p.permission.key),
       };
     }
   }
@@ -52,7 +71,6 @@ export default async function NewRolePage({
         initial={null}
         defaults={defaults}
       />
-
     </div>
   );
 }
