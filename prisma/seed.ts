@@ -66,7 +66,7 @@ async function ensureBranding(tenantId: string) {
     create: {
       tenantId,
       logoUrl: DEFAULT_THEME.logoUrl ?? null,
-      theme: DEFAULT_THEME,
+      theme: DEFAULT_THEME, // ← canonical, rich theme (with header/table tokens)
     },
   });
 }

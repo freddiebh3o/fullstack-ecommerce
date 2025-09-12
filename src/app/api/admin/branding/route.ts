@@ -7,32 +7,30 @@ import { getCurrentTenantId } from "@/lib/tenant/resolve";
 import { db } from "@/lib/db/prisma";
 import { can } from "@/lib/auth/permissions";
 import { audit } from "@/lib/audit/audit";
+
+import { DEFAULT_THEME, type BrandingTheme, type ThemePalette } from "@/lib/branding/defaults";
+import { coerceTheme, deepMerge } from "@/lib/branding/utils";
 import { getBrandingForTenant } from "@/lib/branding/get-branding";
 
-// Optional: mark dynamic so Next won't try to cache at build
 export const dynamic = "force-dynamic";
 
-/**
- * Very small deep-merge utility for plain objects.
- * - arrays are replaced (not concatenated)
- * - only merges objects; primitives/arrays overwrite
- */
-function deepMerge<T extends Record<string, any>, U extends Record<string, any>>(target: T, src: U): T & U {
-  const out: any = { ...target };
-  for (const [k, v] of Object.entries(src ?? {})) {
-    if (v && typeof v === "object" && !Array.isArray(v) && typeof out[k] === "object" && !Array.isArray(out[k])) {
-      out[k] = deepMerge(out[k], v as any);
-    } else {
-      out[k] = v;
-    }
-  }
-  return out;
+/** ---------- Permission helpers ---------- */
+async function canReadBranding(tenantId: string, session: any) {
+  const sys = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
+  if (sys === "ADMIN" || sys === "SUPERADMIN") return true;
+  return (await can("branding.read", tenantId)) || (await can("branding.write", tenantId));
 }
 
-/** Theme partial schema — flexible but typed */
+async function canWriteBranding(tenantId: string, session: any) {
+  const sys = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
+  if (sys === "ADMIN" || sys === "SUPERADMIN") return true;
+  return can("branding.write", tenantId);
+}
+
+/** ---------- Validation (rich, partial) ---------- */
 const ThemePartialSchema = z
   .object({
-    colors: z.record(z.string(), z.string()).optional(), // keys: string, values: string
+    colors: z.record(z.string(), z.string()).optional(),
     typography: z
       .object({
         fontFamily: z.string().optional(),
@@ -60,22 +58,7 @@ const PutSchema = z
     path: [],
   });
 
-async function canReadBranding(tenantId: string, session: any) {
-  const sys = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
-  if (sys === "ADMIN" || sys === "SUPERADMIN") return true;
-  return (await can("branding.read", tenantId)) || (await can("branding.write", tenantId));
-}
-
-async function canWriteBranding(tenantId: string, session: any) {
-  const sys = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
-  if (sys === "ADMIN" || sys === "SUPERADMIN") return true;
-  return can("branding.write", tenantId);
-}
-
-/**
- * GET /api/admin/branding
- * Returns: { light, dark, logoUrl }
- */
+/** ---------- GET: read normalized branding ---------- */
 export const GET = async () => {
   const session = await getServerSession(authOptions);
   if (!session) return error(401, "UNAUTHENTICATED", "You must be signed in");
@@ -87,7 +70,6 @@ export const GET = async () => {
     return error(403, "FORBIDDEN", "Insufficient permissions");
   }
 
-  // Use your helper that already falls back to defaults if needed
   const branding = await getBrandingForTenant(tenantId);
   return ok({
     light: branding.light,
@@ -96,11 +78,7 @@ export const GET = async () => {
   });
 };
 
-/**
- * PUT /api/admin/branding
- * Body: { light?: ThemePartial, dark?: ThemePartial, logoUrl?: string|null }
- * Merges partial into stored JSON. Creates row if missing.
- */
+/** ---------- PUT: merge & persist normalized branding ---------- */
 export const PUT = async (req: Request) => {
   const session = await getServerSession(authOptions);
   if (!session) return error(401, "UNAUTHENTICATED", "You must be signed in");
@@ -119,43 +97,37 @@ export const PUT = async (req: Request) => {
   }
   const { light, dark, logoUrl } = parsed.data;
 
-  // Fetch existing or default
+  // Load existing or start from canonical defaults, then normalize shape
   const existing = await db.tenantBranding.findUnique({
     where: { tenantId },
-    select: { id: true, theme: true, logoUrl: true },
+    select: { theme: true, logoUrl: true },
   });
 
-  // Build the new theme object
-  // If nothing exists, seed with empty buckets; "getBrandingForTenant" handles runtime defaults anyway,
-  // but we keep structure tidy in DB.
-  const currentTheme =
-    (existing?.theme as any) ??
-    {
-      metaVersion: 1,
-      light: {},
-      dark: {},
-    };
+  const current: BrandingTheme = existing
+    ? coerceTheme(existing.theme ?? DEFAULT_THEME)
+    : DEFAULT_THEME;
 
-  let newTheme = currentTheme;
-  if (light) newTheme = deepMerge(newTheme, { light });
-  if (dark) newTheme = deepMerge(newTheme, { dark });
+  // Build next (rich) by deep-merging partials
+  const nextLight: ThemePalette =
+    light ? deepMerge<ThemePalette>(current.light, light as Partial<ThemePalette>) : current.light;
 
-  // Upsert branding row
+  const nextDark: ThemePalette =
+    dark ? deepMerge<ThemePalette>(current.dark, dark as Partial<ThemePalette>) : current.dark;
+
+  const next: BrandingTheme = {
+    light: nextLight,
+    dark: nextDark,
+    logoUrl: logoUrl !== undefined ? logoUrl : current.logoUrl,
+  };
+
+  // Persist normalized JSON; keep column logoUrl in sync for legacy reads
   const updated = await db.tenantBranding.upsert({
     where: { tenantId },
-    create: {
-      tenantId,
-      theme: newTheme,
-      logoUrl: logoUrl !== undefined ? logoUrl : existing?.logoUrl ?? null,
-    },
-    update: {
-      theme: newTheme,
-      ...(logoUrl !== undefined ? { logoUrl } : {}),
-    },
+    create: { tenantId, theme: next as any, logoUrl: next.logoUrl },
+    update: { theme: next as any, ...(logoUrl !== undefined ? { logoUrl } : {}) },
     select: { theme: true, logoUrl: true, id: true },
   });
 
-  // Audit
   await audit(db, tenantId, (session.user as any).id, "branding.update", {
     changed: {
       light: !!light,
@@ -164,9 +136,11 @@ export const PUT = async (req: Request) => {
     },
   });
 
+  // Return normalized slices (avoid leaking unrelated JSON details)
+  const result = coerceTheme(updated.theme ?? DEFAULT_THEME);
   return ok({
-    light: (updated.theme as any)?.light ?? {},
-    dark: (updated.theme as any)?.dark ?? {},
-    logoUrl: updated.logoUrl ?? null,
+    light: result.light,
+    dark: result.dark,
+    logoUrl: result.logoUrl ?? null,
   });
 };

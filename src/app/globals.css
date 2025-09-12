@@ -1,3 +1,4 @@
+/* src/app/globals.css */
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -41,6 +42,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --primary-hover: var(--color-primary-hover);
+  --secondary-hover: var(--color-secondary-hover);
 }
 
 :root {
@@ -76,6 +79,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --primary-hover: color-mix(in oklab, var(--primary), black 8%);
+  --secondary-hover: color-mix(in oklab, var(--secondary), black 8%);
 }
 
 .dark {
@@ -110,6 +115,8 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --primary-hover: color-mix(in oklab, var(--primary), white 10%);
+  --secondary-hover: color-mix(in oklab, var(--secondary), white 10%);
 }
 
 @layer base {

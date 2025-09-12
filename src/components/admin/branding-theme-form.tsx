@@ -3,9 +3,29 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+
 import ImageUploader from "@/components/admin/image-uploader";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 import {
   Card,
   CardHeader,
@@ -15,131 +35,20 @@ import {
   CardContent,
 } from "@/components/ui/card";
 
-/* =========================
-   Types (mirror API)
-   ========================= */
-type ThemePalette = {
-  colors: Record<
-    | "primary"
-    | "primaryHover"
-    | "secondary"
-    | "secondaryHover"
-    | "background"
-    | "surface"
-    | "text"
-    | "textMuted"
-    | "border"
-    | "success"
-    | "warning"
-    | "error",
-    string
-  >;
-  typography: {
-    fontFamily: string;
-    fontSize: Record<"xs" | "sm" | "base" | "lg" | "xl" | "2xl", string>;
-    fontWeight: Record<"light" | "normal" | "medium" | "bold", number | string>;
-    lineHeight: Record<"tight" | "normal" | "relaxed", number | string>;
-  };
-  spacing: Record<"none" | "xs" | "sm" | "md" | "lg" | "xl" | "2xl", string>;
-  radii: Record<"none" | "sm" | "md" | "lg" | "full", string>;
-  shadows: Record<"sm" | "md" | "lg", string>;
-  breakpoints: Record<"sm" | "md" | "lg" | "xl", string>;
-};
-
-type BrandingTheme = {
-  light: ThemePalette;
-  dark: ThemePalette;
-  logoUrl: string | null;
-};
-
-type Props = {
-  initial: BrandingTheme;
-  canWrite: boolean;
-};
-
-// ---- Reasonable defaults (used by Reset to defaults) ----
-const DEFAULTS: BrandingTheme = {
-  light: {
-    colors: {
-      // Blue-forward
-      primary: "#2563EB",        // blue-600
-      primaryHover: "#1D4ED8",   // blue-700
-      // Complementary accent (sky)
-      secondary: "#0EA5E9",      // sky-500
-      secondaryHover: "#0284C7", // sky-600
-
-      // Neutrals
-      background: "#F8FAFC",     // slate-50
-      surface: "#FFFFFF",
-      text: "#0F172A",           // slate-900
-      textMuted: "#64748B",      // slate-500
-      border: "#E2E8F0",         // slate-200
-
-      // States
-      success: "#16A34A",        // green-600
-      warning: "#D97706",        // amber-600
-      error: "#DC2626",          // red-600
-    },
-    typography: {
-      fontFamily: "'Inter', sans-serif",
-      fontSize: { xs: "12px", sm: "14px", base: "16px", lg: "18px", xl: "20px", "2xl": "24px" },
-      fontWeight: { light: 300, normal: 400, medium: 500, bold: 700 },
-      lineHeight: { tight: 1.2, normal: 1.5, relaxed: 1.7 },
-    },
-    spacing: { none: "0px", xs: "4px", sm: "8px", md: "16px", lg: "24px", xl: "32px", "2xl": "48px" },
-    radii: { none: "0px", sm: "4px", md: "8px", lg: "16px", full: "9999px" },
-    shadows: {
-      sm: "0 1px 2px rgba(0,0,0,0.06)",
-      md: "0 4px 10px rgba(0,0,0,0.08)",
-      lg: "0 12px 24px rgba(0,0,0,0.12)",
-    },
-    breakpoints: { sm: "640px", md: "768px", lg: "1024px", xl: "1280px" },
-  },
-  dark: {
-    colors: {
-      primary: "#3B82F6",        // blue-500
-      primaryHover: "#2563EB",   // blue-600
-      secondary: "#38BDF8",      // sky-400
-      secondaryHover: "#0EA5E9", // sky-500
-
-      background: "#0B1220",     // deep navy
-      surface: "#0F172A",        // slate-900
-      text: "#E5E7EB",           // slate-200
-      textMuted: "#9CA3AF",      // slate-400
-      border: "#1F2937",         // slate-800
-
-      success: "#22C55E",        // green-500
-      warning: "#F59E0B",        // amber-500
-      error:   "#F87171",        // red-400
-    },
-    typography: {
-      fontFamily: "'Inter', sans-serif",
-      fontSize: { xs: "12px", sm: "14px", base: "16px", lg: "18px", xl: "20px", "2xl": "24px" },
-      fontWeight: { light: 300, normal: 400, medium: 500, bold: 700 },
-      lineHeight: { tight: 1.2, normal: 1.5, relaxed: 1.7 },
-    },
-    spacing: { none: "0px", xs: "4px", sm: "8px", md: "16px", lg: "24px", xl: "32px", "2xl": "48px" },
-    radii: { none: "0px", sm: "4px", md: "8px", lg: "16px", full: "9999px" },
-    shadows: {
-      sm: "0 1px 2px rgba(0,0,0,0.35)",
-      md: "0 4px 10px rgba(0,0,0,0.4)",
-      lg: "0 12px 24px rgba(0,0,0,0.5)",
-    },
-    breakpoints: { sm: "640px", md: "768px", lg: "1024px", xl: "1280px" },
-  },
-  logoUrl: null,
-};
-
+import type { BrandingTheme, ThemePalette } from "@/lib/branding/defaults";
+import { DEFAULT_THEME as DEFAULTS } from "@/lib/branding/defaults";
+import { CheckCircle2, AlertTriangle, XCircle, Info } from "lucide-react";
 
 /* =========================
    Helpers
    ========================= */
 function toCssVars(p: ThemePalette): React.CSSProperties {
   return {
-    // colors
+    // core colors
     ["--primary" as any]: p.colors.primary,
     ["--primary-hover" as any]: p.colors.primaryHover,
     ["--primary-foreground" as any]: p.colors.text,
+
     ["--secondary" as any]: p.colors.secondary,
     ["--secondary-hover" as any]: p.colors.secondaryHover,
     ["--secondary-foreground" as any]: p.colors.text,
@@ -149,13 +58,21 @@ function toCssVars(p: ThemePalette): React.CSSProperties {
     ["--card-foreground" as any]: p.colors.text,
     ["--muted-foreground" as any]: p.colors.textMuted,
     ["--border" as any]: p.colors.border,
+
     ["--success" as any]: p.colors.success,
     ["--warning" as any]: p.colors.warning,
     ["--destructive" as any]: p.colors.error,
-    ["--ring" as any]: p.colors.primaryHover,
 
-    // ["--card-header-bg" as any]: p.colors.primary,
-    // ["--card-header-fg" as any]: p.colors.text, // readable on top of primary
+    ["--ring" as any]: p.colors.ring ?? p.colors.primaryHover,
+
+    // header / section tokens
+    ["--card-header-bg" as any]: p.colors.headerBg ?? p.colors.primary,
+    ["--card-header-fg" as any]: p.colors.headerTitle ?? p.colors.text,
+    ["--card-header-desc" as any]: p.colors.headerDesc ?? p.colors.textMuted,
+
+    // table header tokens
+    ["--table-header-bg" as any]: p.colors.tableHeaderBg ?? p.colors.surface,
+    ["--table-header-fg" as any]: p.colors.tableHeaderFg ?? p.colors.text,
 
     // type
     ["--font-family" as any]: p.typography.fontFamily,
@@ -166,20 +83,6 @@ function toCssVars(p: ThemePalette): React.CSSProperties {
 
     // radii & shadows
     ["--radius-md" as any]: p.radii.md,
-    ["--shadow-sm" as any]: p.shadows.sm,
-    ["--shadow-md" as any]: p.shadows.md,
-
-    // type
-    ["--font-family" as any]: p.typography.fontFamily,
-    ["--fs-base" as any]: p.typography.fontSize.base,
-    ["--fs-sm" as any]: p.typography.fontSize.sm,
-    ["--fs-lg" as any]: p.typography.fontSize.lg,
-    ["--lh-normal" as any]: String(p.typography.lineHeight.normal),
-
-    // radii
-    ["--radius-md" as any]: p.radii.md,
-
-    // shadows
     ["--shadow-sm" as any]: p.shadows.sm,
     ["--shadow-md" as any]: p.shadows.md,
   } as React.CSSProperties;
@@ -203,11 +106,12 @@ const GROUPS: Array<{ title: string; keys: Array<keyof ThemePalette["colors"]> }
   { title: "Secondary", keys: ["secondary", "secondaryHover"] },
   { title: "Neutrals", keys: ["background", "surface", "text", "textMuted", "border"] },
   { title: "State colors", keys: ["success", "warning", "error"] },
+  // New groups
+  { title: "Headers (Card / Section)", keys: ["headerBg", "headerTitle", "headerDesc"] },
+  { title: "Table Header", keys: ["tableHeaderBg", "tableHeaderFg"] },
 ];
 
-/* =========================
-   Small UI bit: Color field
-   ========================= */
+
 function ColorField({
   label,
   value,
@@ -218,24 +122,26 @@ function ColorField({
   onChange: (val: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <label className="w-40 text-sm">{label}</label>
-      <input
-        type="color"
-        value={isHex(value) ? value : "#000000"}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-10 rounded border p-0"
-        aria-label={`${label} color picker`}
-        title="Pick color"
-      />
-      <Input
-        className="bg-background font-mono text-xs"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="#000000"
-        aria-label={`${label} hex`}
-      />
-      <div className="h-6 w-6 rounded border" style={{ background: value }} aria-hidden />
+    <div className="flex flex-col gap-1">
+      <Label className="w-44 text-sm">{label}</Label>
+      <div className="flex items-center gap-1">
+        <input
+          type="color"
+          value={isHex(value) ? value : "#000000"}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-10 w-10"
+          aria-label={`${label} color picker`}
+          title="Pick color"
+        />
+        <Input
+          className="bg-background font-mono text-xs"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="#000000"
+          aria-label={`${label} hex`}
+        />
+        {/* <div className="h-6 w-6 rounded border" style={{ background: value }} aria-hidden /> */}
+      </div>
     </div>
   );
 }
@@ -243,6 +149,11 @@ function ColorField({
 /* =========================
    Main component
    ========================= */
+type Props = {
+  initial: BrandingTheme;
+  canWrite: boolean;
+};
+
 export default function BrandingThemeForm({ initial, canWrite }: Props) {
   const router = useRouter();
 
@@ -326,13 +237,19 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
   }
 
   function resetToDefaults() {
-    setTheme(DEFAULTS);
+    // Resets to canonical defaults (not saved until Save is pressed)
+    setTheme({
+      light: DEFAULTS.light,
+      dark: DEFAULTS.dark,
+      logoUrl: null,
+      metaVersion: DEFAULTS.metaVersion,
+    } as BrandingTheme);
     setOk(false);
     setError(null);
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_440px]">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
       {/* ===== Top page header with actions ===== */}
       <div className="lg:col-span-2">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
@@ -367,16 +284,17 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
             <CardTitle>Branding</CardTitle>
             <CardDescription>Upload your admin logo and pick which palette you’re editing.</CardDescription>
             <CardAction>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Editing</span>
-                <select
-                  className="rounded-md border bg-background px-2 py-1 text-sm"
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value as "light" | "dark")}
-                >
-                  <option value="light">Light palette</option>
-                  <option value="dark">Dark palette</option>
-                </select>
+              <div className="flex flex-col items-start gap-3">
+                {/* shadcn Select */}
+                <Select value={mode} onValueChange={(v: "light" | "dark") => setMode(v)}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue placeholder="Choose palette" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="light">Light palette</SelectItem>
+                    <SelectItem value="dark">Dark palette</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardAction>
           </CardHeader>
@@ -410,15 +328,28 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                 <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {group.title}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                   {group.keys.map((k) => {
                     const label =
                       k === "primaryHover"
                         ? "Primary Hover"
                         : k === "secondaryHover"
                         ? "Secondary Hover"
-                        : k.charAt(0).toUpperCase() + k.slice(1);
-                    const val = (mode === "light" ? theme.light.colors[k] : theme.dark.colors[k]) || "";
+                        : k === "headerBg"
+                        ? "Header Background"
+                        : k === "headerTitle"
+                        ? "Header Title"
+                        : k === "headerDesc"
+                        ? "Header Description"
+                        : k === "tableHeaderBg"
+                        ? "Table Header Background"
+                        : k === "tableHeaderFg"
+                        ? "Table Header Text"
+                        : (k as string).charAt(0).toUpperCase() + (k as string).slice(1);
+
+                    const val =
+                      (mode === "light" ? theme.light.colors[k] : theme.dark.colors[k]) || "";
+
                     return (
                       <ColorField
                         key={k}
@@ -441,22 +372,31 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
           <CardHeader className="border-b">
             <CardTitle>Preview</CardTitle>
             <CardAction>
-              <label className="flex select-none items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              {/* Dark-mode preview toggle (uses shadcn Switch you already wired) */}
+              <div className="flex items-center gap-2">
+                <Label htmlFor="preview-dark" className="text-sm">
+                  Dark mode
+                </Label>
+                <Switch
+                  id="preview-dark"
                   checked={previewDark}
-                  onChange={(e) => setPreviewDark(e.target.checked)}
+                  onCheckedChange={setPreviewDark}
+                  aria-label="Toggle dark mode preview"
                 />
-                Dark mode
-              </label>
+              </div>
             </CardAction>
           </CardHeader>
+
           <CardContent>
             {/* Scoped CSS so hover/active work without affecting your app */}
             <style
               // eslint-disable-next-line react/no-danger
               dangerouslySetInnerHTML={{
                 __html: `
+                  .branding-preview {
+                    padding: 1rem;
+                    border-radius: var(--radius-md);
+                  }
                   .branding-preview .btn {
                     transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
                     border-radius: var(--radius-md);
@@ -474,10 +414,21 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                   .branding-preview .link { color: var(--primary-foreground); text-decoration: underline transparent; text-underline-offset: 2px; }
                   .branding-preview .link:hover { text-decoration-color: currentColor; color: var(--secondary-foreground); background: var(--secondary); }
 
-                  .branding-preview .alert { border: 1px solid; border-radius: var(--radius-md); padding: 0.5rem 0.75rem; }
+                  .branding-preview .alert {
+                    border: 1px solid;
+                    border-radius: var(--radius-md);
+                    padding: 0.5rem 0.75rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                  }
                   .branding-preview .alert-success { border-color: var(--success); }
                   .branding-preview .alert-warning { border-color: var(--warning); }
                   .branding-preview .alert-error { border-color: var(--destructive); }
+
+                  .branding-preview .alert-success .icon { color: var(--success); }
+                  .branding-preview .alert-warning .icon { color: var(--warning); }
+                  .branding-preview .alert-error .icon { color: var(--destructive); }
 
                   .branding-preview .field input {
                     width: 100%;
@@ -491,17 +442,32 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                     outline: 2px solid var(--ring);
                     outline-offset: 2px;
                   }
+
+                  /* header section preview */
+                  .branding-preview .card-header {
+                    background: var(--card-header-bg);
+                    color: var(--card-header-fg);
+                  }
+                  .branding-preview .card-header .desc {
+                    color: var(--card-header-desc);
+                  }
+
+                  /* table header preview */
+                  .branding-preview table thead th {
+                    background: var(--table-header-bg);
+                    color: var(--table-header-fg);
+                  }
                 `,
               }}
             />
+
             <section
               className={`branding-preview ${previewDark ? "dark" : ""}`}
               style={toCssVars(previewPalette)}
               data-admin
             >
-              {/* Two-up content showing common UI */}
               <div className="grid gap-4">
-                {/* Card: text + muted + actions */}
+                {/* Card: header + content */}
                 <div
                   className="rounded-lg overflow-hidden"
                   style={{
@@ -511,35 +477,59 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                     boxShadow: "var(--shadow-sm)",
                   }}
                 >
-                  {/* 🟦 colorful header */}
-                  <div
-                    className="px-4 py-2 text-sm font-medium"
-                    style={{ background: "var(--card-header-bg)", color: "var(--card-header-fg)" }}
-                  >
-                    Product details
+                  {/* header using header tokens */}
+                  <div className="card-header px-4 py-2">
+                    <div className="text-sm font-medium flex items-center gap-2">
+                      {/* Optional header icon; remove if you don't want it */}
+                      <Info className="h-4 w-4" aria-hidden />
+                      Product details
+                    </div>
+                    <div className="desc text-xs">Example header using headerBg/headerTitle/headerDesc</div>
                   </div>
 
-                  <div className="p-4">
-                    <div className="mb-1 text-sm text-muted-foreground">
+                  <div className="p-4 space-y-3">
+                    {/* Intro text + link */}
+                    <div className="text-sm text-muted-foreground">
                       This simulates a typical card.
                     </div>
-                    <p className="mb-3 text-sm" style={{ fontSize: "var(--fs-base)" }}>
+                    <p className="text-sm" style={{ fontSize: "var(--fs-base)" }}>
                       Use buttons to see hover. Try the link too:{" "}
                       <a className="link rounded px-1" href="#">
                         view more
                       </a>
                       .
                     </p>
+
+                    {/* Buttons (kept) */}
                     <div className="flex flex-wrap gap-2">
                       <button className="btn btn-primary">Primary</button>
                       <button className="btn btn-secondary">Secondary</button>
                       <button className="btn btn-ghost">Ghost</button>
                       <button className="btn btn-destructive">Delete</button>
                     </div>
+
+                    {/* State alerts with icons */}
+                    <div className="alert alert-success text-sm">
+                      <CheckCircle2 className="icon h-4 w-4" aria-hidden />
+                      <span>Success — operation completed.</span>
+                    </div>
+                    <div className="alert alert-warning text-sm">
+                      <AlertTriangle className="icon h-4 w-4" aria-hidden />
+                      <span>Warning — please double check.</span>
+                    </div>
+                    <div className="alert alert-error text-sm">
+                      <XCircle className="icon h-4 w-4" aria-hidden />
+                      <span>Error — something went wrong.</span>
+                    </div>
+
+                    {/* Input focus demo */}
+                    <div className="field">
+                      <Input placeholder="Focus me to see ring (uses primaryHover)" />
+                    </div>
                   </div>
                 </div>
 
-                {/* Card: alerts + input focus */}
+                {/* Table preview to showcase table header tokens */}
                 <div
                   className="rounded-lg overflow-hidden"
                   style={{
@@ -549,22 +539,50 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                     boxShadow: "var(--shadow-sm)",
                   }}
                 >
-                  {/* 🟦 colorful header */}
-                  <div
-                    className="px-4 py-2 text-sm font-medium"
-                    style={{ background: "var(--card-header-bg)", color: "var(--card-header-fg)" }}
-                  >
-                    Notifications & Inputs
+                  <div className="px-4 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                    <div className="text-sm font-medium">Table preview</div>
                   </div>
 
-                  <div className="p-4">
-                    <div className="alert alert-success mb-2 text-sm">Success – operation completed.</div>
-                    <div className="alert alert-warning mb-2 text-sm">Warning – please double check.</div>
-                    <div className="alert alert-error mb-3 text-sm">Error – something went wrong.</div>
-
-                    <div className="field">
-                      <input placeholder="Focus me to see ring (uses primaryHover)" />
-                    </div>
+                  <div className="p-4 overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="border" style={{ borderColor: "var(--border)" }}>
+                            Name
+                          </TableHead>
+                          <TableHead className="border" style={{ borderColor: "var(--border)" }}>
+                            Status
+                          </TableHead>
+                          <TableHead className="border" style={{ borderColor: "var(--border)" }}>
+                            Price
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell className="border" style={{ borderColor: "var(--border)" }}>
+                            SunLite 400W
+                          </TableCell>
+                          <TableCell className="border" style={{ borderColor: "var(--border)" }}>
+                            Active
+                          </TableCell>
+                          <TableCell className="border" style={{ borderColor: "var(--border)" }}>
+                            £149.99
+                          </TableCell>
+                        </TableRow>
+                        <TableRow>
+                          <TableCell className="border" style={{ borderColor: "var(--border)" }}>
+                            EcoPower 3kW
+                          </TableCell>
+                          <TableCell className="border" style={{ borderColor: "var(--border)" }}>
+                            Active
+                          </TableCell>
+                          <TableCell className="border" style={{ borderColor: "var(--border)" }}>
+                            £229.99
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               </div>
@@ -572,6 +590,7 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
           </CardContent>
         </Card>
       </div>
+
     </div>
   );
 }

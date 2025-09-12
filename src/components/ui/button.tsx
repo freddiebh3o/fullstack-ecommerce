@@ -6,21 +6,24 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils/misc"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  // base
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-[var(--ring)] focus-visible:ring-[color-mix(in_oklab,var(--ring),transparent_50%)] focus-visible:ring-[3px] aria-invalid:ring-[color-mix(in_oklab,var(--destructive),transparent_80%)] dark:aria-invalid:ring-[color-mix(in_oklab,var(--destructive),transparent_60%)] aria-invalid:border-[var(--destructive)]",
   {
     variants: {
       variant: {
+        // use brand tokens (mapped in admin-theme.css and at :root fallback)
         default:
-          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
+          "bg-[var(--primary)] text-[var(--header-title)] shadow-xs hover:bg-[var(--primary-hover)]",
         destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+          "bg-[var(--destructive)] text-white shadow-xs hover:bg-[color-mix(in_oklab,var(--destructive),black_10%)] focus-visible:ring-[color-mix(in_oklab,var(--destructive),transparent_80%)] dark:focus-visible:ring-[color-mix(in_oklab,var(--destructive),transparent_60%)]",
         outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+          "border bg-[var(--background)] text-[var(--foreground)] shadow-xs hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] dark:bg-[color-mix(in_oklab,var(--background),var(--input)_30%)] dark:border-[var(--input)] dark:hover:bg-[color-mix(in_oklab,var(--background),var(--input)_50%)]",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+          "bg-[var(--secondary)] text-[var(--secondary-foreground)] shadow-xs hover:bg-[var(--secondary-hover)]",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "hover:bg-[var(--accent)] hover:text-[var(--accent-foreground)] dark:hover:bg-[color-mix(in_oklab,var(--accent),transparent_50%)]",
+        link:
+          "text-[var(--primary)] underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",

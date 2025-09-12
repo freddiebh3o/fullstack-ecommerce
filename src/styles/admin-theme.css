@@ -1,28 +1,170 @@
-/* Alias old var names to new ones to avoid mass refactors (optional) */
-[data-admin]{
+/* src/styles/admin-theme.css
+   Admin-only theming. All brand variables are injected as --color-* tokens
+   via themeToScopedCss() and are scoped to [data-admin].
+   This file maps those tokens to utility variables and applies them to UI.
+*/
+
+/* ------------------------------------------------------------------ */
+/* Token aliases: map injected --color-* → CSS variables used by admin */
+/* ------------------------------------------------------------------ */
+
+[data-admin] {
+  /* Core brand */
   --primary: var(--color-primary);
   --primary-foreground: var(--color-text);
-  --ring: var(--color-ring);
+  --secondary: var(--color-secondary);
+  --secondary-foreground: var(--color-text);
+
+  /* Explicit hovers (provided by branding injection) */
+  --primary-hover: var(--color-primary-hover);
+  --secondary-hover: var(--color-secondary-hover);
+
+  /* Surfaces & text */
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
   --card: var(--color-card);
   --card-foreground: var(--color-text);
+  --muted-foreground: var(--color-text-muted);
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-ring);
+
+  /* Sidebar */
   --sidebar: var(--color-sidebar);
+  --sidebar-foreground: var(--color-text);
+  --sidebar-primary: var(--color-primary);
+  --sidebar-primary-foreground: var(--color-text);
+  --sidebar-accent: var(--color-secondary);
+  --sidebar-accent-foreground: var(--color-text);
+  --sidebar-border: var(--color-border);
+  --sidebar-ring: var(--color-ring);
+
+  /* Semantic */
+  --destructive: var(--color-error);
+
+  /* Charts */
+  --chart-1: var(--color-primary);
+  --chart-2: var(--color-secondary);
+  --chart-3: var(--color-success);
+  --chart-4: var(--color-warning);
+  --chart-5: var(--color-error);
+
+  /* Header / section tokens */
+  --header-bg: var(--color-header-bg);
+  --header-title: var(--color-header-title);
+  --header-desc: var(--color-header-desc);
+
+  /* Table header tokens */
+  --table-header-bg: var(--color-table-header-bg);
+  --table-header-fg: var(--color-table-header-fg);
 }
-.dark [data-admin]{
+
+/* Dark mode uses the same aliasing (vars are already swapped at injection time) */
+.dark [data-admin] {
   --primary: var(--color-primary);
   --primary-foreground: var(--color-text);
-  --ring: var(--color-ring);
+  --secondary: var(--color-secondary);
+  --secondary-foreground: var(--color-text);
+
+  --primary-hover: var(--color-primary-hover);
+  --secondary-hover: var(--color-secondary-hover);
+
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
   --card: var(--color-card);
   --card-foreground: var(--color-text);
+  --muted-foreground: var(--color-text-muted);
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-ring);
+
   --sidebar: var(--color-sidebar);
+  --sidebar-foreground: var(--color-text);
+  --sidebar-primary: var(--color-primary);
+  --sidebar-primary-foreground: var(--color-text);
+  --sidebar-accent: var(--color-secondary);
+  --sidebar-accent-foreground: var(--color-text);
+  --sidebar-border: var(--color-border);
+  --sidebar-ring: var(--color-ring);
+
+  --destructive: var(--color-error);
+
+  --chart-1: var(--color-primary);
+  --chart-2: var(--color-secondary);
+  --chart-3: var(--color-success);
+  --chart-4: var(--color-warning);
+  --chart-5: var(--color-error);
+
+  --header-bg: var(--color-header-bg);
+  --header-title: var(--color-header-title);
+  --header-desc: var(--color-header-desc);
+
+  --table-header-bg: var(--color-table-header-bg);
+  --table-header-fg: var(--color-table-header-fg);
 }
 
-/* Admin-only colorful card headers driven by tokens */
-/* [data-admin] [data-slot="card-header"] {
-  background: var(--card);
-  color: var(--color-primary-foreground);
-  border-bottom: 1px solid color-mix(in oklab, var(--color-primary), black 12%);
+/* ------------------------------------------------------------------ */
+/* Admin-only components styling that consumes the above tokens        */
+/* ------------------------------------------------------------------ */
+
+/* Card header uses the header tokens */
+[data-admin] [data-slot="card-header"] {
+  background: var(--header-bg);
+  color: var(--header-title);
+  border-bottom: 1px solid color-mix(in oklab, var(--header-bg), black 12%);
+}
+[data-admin] [data-slot="card-header"] [data-slot="card-title"] {
+  color: var(--header-title);
+}
+[data-admin] [data-slot="card-header"] [data-slot="card-description"] {
+  color: var(--header-desc);
 }
 
-[data-admin] [data-slot="card-description"] {
-  color: var(--color-surface);
-} */
+/* Tables: thead cells pick up table header tokens */
+[data-admin] table thead th,
+[data-admin] table thead td {
+  background: var(--table-header-bg);
+  color: var(--table-header-fg);
+  border-bottom: 1px solid color-mix(in oklab, var(--table-header-bg), black 10%);
+}
+
+/* =========================================================
+   SELECT (shadcn/Radix) inside colored card headers
+   Make text + chevron readable on header backgrounds.
+   ========================================================= */
+[data-admin] [data-slot="card-header"] [role="combobox"] {
+  color: var(--header-title) !important; /* was --card-header-fg (undefined) */
+  background: transparent !important;
+  border-color: color-mix(in oklab, var(--header-title), transparent 70%) !important;
+}
+/* Placeholder text */
+[data-admin] [data-slot="card-header"] [role="combobox"] [data-placeholder] {
+  color: var(--header-desc) !important;
+}
+/* Chevron icon */
+[data-admin] [data-slot="card-header"] [role="combobox"] svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+  opacity: 0.9;
+}
+/* Focus ring on colored header */
+[data-admin] [data-slot="card-header"] [role="combobox"]:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--header-title), transparent 60%) !important;
+  outline-offset: 2px;
+}
+/* Optional hover hint */
+[data-admin] [data-slot="card-header"] [role="combobox"]:hover {
+  background: color-mix(in oklab, var(--header-title), transparent 92%) !important;
+}
+
+/* Base resets limited to admin scope */
+@layer base {
+  [data-admin] {
+    background: var(--background);
+    color: var(--foreground);
+  }
+  .dark [data-admin] {
+    background: var(--background);
+    color: var(--foreground);
+  }
+}

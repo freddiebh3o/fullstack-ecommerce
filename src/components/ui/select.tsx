@@ -1,11 +1,10 @@
-// src/components/ui/select.tsx
 "use client"
 
 import * as React from "react"
 import * as SelectPrimitive from "@radix-ui/react-select"
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
 
-import { cn } from "@/lib/utils/misc"
+import { cn } from "@/lib/utils/index"
 
 function Select({
   ...props
