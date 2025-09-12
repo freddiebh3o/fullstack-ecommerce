@@ -72,7 +72,7 @@ const LIGHT: ThemePalette = {
     // Semantic: dialed down saturation a hair
     success: "#25B26A",
     warning: "#D68A16",
-    error:   "#E35858",
+    error:   "#E35859",
 
     // Section headers (cards, panels): blue bg with white text
     headerBg: "#8AB4F8",       // between primary & hover for body headers

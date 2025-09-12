@@ -1,4 +1,4 @@
-// src/components/admin/TenantCookieGuard.tsx
+// src/components/admin/tenant-cookie-guard.tsx
 "use client";
 
 import { useEffect } from "react";

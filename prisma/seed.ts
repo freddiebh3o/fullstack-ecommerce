@@ -213,10 +213,10 @@ async function main() {
   async function getTenantRoles(tenantId: string) {
     const roles = await prisma.role.findMany({ where: { tenantId }, select: { id: true, key: true } });
     return {
-      OWNER:   roles.find(r => r.key === "OWNER")!,
-      ADMIN:   roles.find(r => r.key === "ADMIN")!,
-      EDITOR:  roles.find(r => r.key === "EDITOR")!,
-      READONLY:roles.find(r => r.key === "READONLY")!,
+      OWNER:    roles.find(r => r.key === "OWNER")!,
+      ADMIN:    roles.find(r => r.key === "ADMIN")!,
+      EDITOR:   roles.find(r => r.key === "EDITOR")!,
+      READONLY: roles.find(r => r.key === "READONLY")!,
     };
   }
   const rolesA = await getTenantRoles(tenantA.id);
@@ -244,10 +244,10 @@ async function main() {
   // 7) Assign permissions per role (per tenant)
   async function assignPerms(tenantId: string) {
     const tRoles = await prisma.role.findMany({ where: { tenantId }, select: { id: true, key: true } });
-    const tOwner = tRoles.find(r => r.key === "OWNER");
-    const tAdmin = tRoles.find(r => r.key === "ADMIN");
+    const tOwner  = tRoles.find(r => r.key === "OWNER");
+    const tAdmin  = tRoles.find(r => r.key === "ADMIN");
     const tEditor = tRoles.find(r => r.key === "EDITOR");
-    const tRO = tRoles.find(r => r.key === "READONLY");
+    const tRO     = tRoles.find(r => r.key === "READONLY");
 
     const assign = async (roleId: string | undefined, permIds: string[]) => {
       if (!roleId) return;
@@ -286,66 +286,201 @@ async function main() {
   await assignPerms(tenantA.id);
   await assignPerms(tenantB.id);
 
-  // 8) Catalog per tenant
-  async function seedCatalog(tenantId: string) {
-    // Categories
-    const cPanels   = await upsertCategoryByTenantSlug(tenantId, "solar-panels", { name: "Solar Panels" });
-    const cInverters= await upsertCategoryByTenantSlug(tenantId, "inverters",     { name: "Inverters" });
-    const cBatteries= await upsertCategoryByTenantSlug(tenantId, "batteries",     { name: "Batteries" });
+  // 8) Catalog per tenant — ensure AT LEAST 20 categories, brands, products
+  const MIN_COUNT = 20;
 
-    // Brands
-    const bSunlite = await upsertBrandByTenantSlug(tenantId, "sunlite", {
-      name: "SunLite", description: "Premium solar components.",
-      websiteUrl: "https://www.sunlite.com",
-      logoUrl: "https://picsum.photos/seed/sunlite/200/200",
-    });
-    const bEco = await upsertBrandByTenantSlug(tenantId, "ecopower", {
-      name: "EcoPower", description: "Eco-friendly inverters and components.",
-      websiteUrl: "https://www.ecopower.example",
-      logoUrl: "https://picsum.photos/seed/ecopower/200/200",
-    });
-    const bHelio = await upsertBrandByTenantSlug(tenantId, "heliotech", {
-      name: "HelioTech", description: "Advanced storage solutions.",
-      websiteUrl: "https://www.heliotech.example",
-      logoUrl: "https://picsum.photos/seed/heliotech/200/200",
-    });
-
-    // Products
-    await upsertProductByTenantSlug(tenantId, "sunlite-400w", {
-      name: "SunLite 400W Panel",
-      description: "High-efficiency 400W monocrystalline panel.",
-      priceCents: 14999, currency: "GBP", stock: 25,
-      brandId: bSunlite.id, categoryId: cPanels.id,
-      images: { create: [{ tenantId, url: "https://picsum.photos/seed/panel400/800/600", alt: "Panel 400", sortOrder: 0 }] },
-    });
-
-    await upsertProductByTenantSlug(tenantId, "sunlite-450w", {
-      name: "SunLite 450W Panel",
-      description: "High-efficiency 450W monocrystalline panel.",
-      priceCents: 17999, currency: "GBP", stock: 25,
-      brandId: bSunlite.id, categoryId: cPanels.id,
-      images: { create: [{ tenantId, url: "https://picsum.photos/seed/panel450/800/600", alt: "Panel 450", sortOrder: 0 }] },
-    });
-
-    await upsertProductByTenantSlug(tenantId, "ecopower-inverter-3kw", {
-      name: "EcoPower Inverter 3kW",
-      description: "Reliable 3kW inverter.",
-      priceCents: 22999, currency: "GBP", stock: 25,
-      brandId: bEco.id, categoryId: cInverters.id,
-      images: { create: [{ tenantId, url: "https://picsum.photos/seed/invert3/800/600", alt: "Inverter 3kW", sortOrder: 0 }] },
-    });
-
-    await upsertProductByTenantSlug(tenantId, "heliotech-battery-10kwh", {
-      name: "HelioTech Battery 10kWh",
-      description: "High-capacity 10kWh battery.",
-      priceCents: 49999, currency: "GBP", stock: 25,
-      brandId: bHelio.id, categoryId: cBatteries.id,
-      images: { create: [{ tenantId, url: "https://picsum.photos/seed/bat10/800/600", alt: "Battery 10kWh", sortOrder: 0 }] },
-    });
+  function pad2(n: number) {
+    return String(n).padStart(2, "0");
   }
 
-  await seedCatalog(tenantA.id);
-  await seedCatalog(tenantB.id);
+  async function ensureMinCategories(tenantId: string, min: number) {
+    // Seed a themed starter set, then fill up to min with generics
+    const starter = [
+      { slug: "solar-panels", name: "Solar Panels" },
+      { slug: "inverters", name: "Inverters" },
+      { slug: "batteries", name: "Batteries" },
+    ];
+    for (const c of starter) {
+      await upsertCategoryByTenantSlug(tenantId, c.slug, { name: c.name });
+    }
+    // ensure generics cat-01..cat-XX
+    for (let i = 1; i <= min; i++) {
+      const slug = `category-${pad2(i)}`;
+      await upsertCategoryByTenantSlug(tenantId, slug, { name: `Category ${pad2(i)}` });
+    }
+  }
+
+  async function ensureMinBrands(tenantId: string, min: number) {
+    const starter = [
+      { slug: "sunlite",   name: "SunLite",   description: "Premium solar components.", websiteUrl: "https://example.com/sunlite",   logoUrl: "https://picsum.photos/seed/sunlite/200/200" },
+      { slug: "ecopower",  name: "EcoPower",  description: "Eco-friendly inverters.",   websiteUrl: "https://example.com/ecopower",  logoUrl: "https://picsum.photos/seed/ecopower/200/200" },
+      { slug: "heliotech", name: "HelioTech", description: "Advanced storage solutions.", websiteUrl: "https://example.com/heliotech", logoUrl: "https://picsum.photos/seed/heliotech/200/200" },
+    ];
+    for (const b of starter) {
+      await upsertBrandByTenantSlug(tenantId, b.slug, b);
+    }
+    for (let i = 1; i <= min; i++) {
+      const slug = `brand-${pad2(i)}`;
+      await upsertBrandByTenantSlug(tenantId, slug, {
+        name: `Brand ${pad2(i)}`,
+        description: `Demo brand ${pad2(i)} for testing.`,
+        websiteUrl: `https://example.com/brand-${pad2(i)}`,
+        logoUrl: `https://picsum.photos/seed/${tenantId}-brand-${pad2(i)}/200/200`,
+      });
+    }
+  }
+
+  async function ensureMinProducts(tenantId: string, min: number) {
+    // Fetch IDs for assignment
+    const categories = await prisma.category.findMany({ where: { tenantId } });
+    const brands = await prisma.brand.findMany({ where: { tenantId } });
+
+    if (categories.length === 0 || brands.length === 0) {
+      throw new Error("Seed error: categories/brands must be created before products.");
+    }
+
+    // Add a few named starters
+    const starter = [
+      {
+        slug: "sunlite-400w", name: "SunLite 400W Panel",
+        desc: "High-efficiency 400W monocrystalline panel.", price: 14999
+      },
+      {
+        slug: "sunlite-450w", name: "SunLite 450W Panel",
+        desc: "High-efficiency 450W monocrystalline panel.", price: 17999
+      },
+      {
+        slug: "ecopower-inverter-3kw", name: "EcoPower Inverter 3kW",
+        desc: "Reliable 3kW inverter.", price: 22999
+      },
+      {
+        slug: "heliotech-battery-10kwh", name: "HelioTech Battery 10kWh",
+        desc: "High-capacity 10kWh battery.", price: 49999
+      },
+    ];
+
+    // Map helpful lookups
+    const catBySlug: Record<string, string> = {};
+    for (const c of categories) catBySlug[c.slug] = c.id;
+
+    const brandBySlug: Record<string, string> = {};
+    for (const b of brands) brandBySlug[b.slug] = b.id;
+
+    // Ensure starters
+    const panelsCatId = catBySlug["solar-panels"] ?? categories[0].id;
+    const invertersCatId = catBySlug["inverters"] ?? categories[1 % categories.length].id;
+    const batteriesCatId = catBySlug["batteries"] ?? categories[2 % categories.length].id;
+
+    const sunliteId = brandBySlug["sunlite"] ?? brands[0].id;
+    const ecoId     = brandBySlug["ecopower"] ?? brands[1 % brands.length].id;
+    const helioId   = brandBySlug["heliotech"] ?? brands[2 % brands.length].id;
+
+    await upsertProductByTenantSlug(tenantId, starter[0].slug, {
+      name: starter[0].name,
+      description: starter[0].desc,
+      priceCents: starter[0].price, currency: "GBP", stock: 25,
+      brandId: sunliteId, categoryId: panelsCatId,
+      images: { create: [{ tenantId, url: `https://picsum.photos/seed/${tenantId}-panel400/800/600`, alt: "Panel 400", sortOrder: 0 }] },
+    });
+
+    await upsertProductByTenantSlug(tenantId, starter[1].slug, {
+      name: starter[1].name,
+      description: starter[1].desc,
+      priceCents: starter[1].price, currency: "GBP", stock: 25,
+      brandId: sunliteId, categoryId: panelsCatId,
+      images: { create: [{ tenantId, url: `https://picsum.photos/seed/${tenantId}-panel450/800/600`, alt: "Panel 450", sortOrder: 0 }] },
+    });
+
+    await upsertProductByTenantSlug(tenantId, starter[2].slug, {
+      name: starter[2].name,
+      description: starter[2].desc,
+      priceCents: starter[2].price, currency: "GBP", stock: 25,
+      brandId: ecoId, categoryId: invertersCatId,
+      images: { create: [{ tenantId, url: `https://picsum.photos/seed/${tenantId}-invert3/800/600`, alt: "Inverter 3kW", sortOrder: 0 }] },
+    });
+
+    await upsertProductByTenantSlug(tenantId, starter[3].slug, {
+      name: starter[3].name,
+      description: starter[3].desc,
+      priceCents: starter[3].price, currency: "GBP", stock: 25,
+      brandId: helioId, categoryId: batteriesCatId,
+      images: { create: [{ tenantId, url: `https://picsum.photos/seed/${tenantId}-bat10/800/600`, alt: "Battery 10kWh", sortOrder: 0 }] },
+    });
+
+    // Fill up to min with generics product-01..product-XX
+    for (let i = 1; i <= min; i++) {
+      const slug = `product-${pad2(i)}`;
+      const cat = categories[i % categories.length];
+      const brand = brands[i % brands.length];
+      const price = 10000 + i * 123; // deterministic but varied
+      const stock = 10 + (i % 30);
+      await upsertProductByTenantSlug(tenantId, slug, {
+        name: `Product ${pad2(i)}`,
+        description: `Demo product ${pad2(i)} for pagination & listing tests.`,
+        priceCents: price,
+        currency: "GBP",
+        stock,
+        brandId: brand.id,
+        categoryId: cat.id,
+        images: {
+          create: [
+            {
+              tenantId,
+              url: `https://picsum.photos/seed/${tenantId}-${slug}/800/600`,
+              alt: `Image for ${slug}`,
+              sortOrder: 0,
+            },
+          ],
+        },
+      });
+    }
+  }
+
+  // Ensure counts for both tenants
+  for (const t of [tenantA, tenantB]) {
+    await ensureMinCategories(t.id, MIN_COUNT);
+    await ensureMinBrands(t.id, MIN_COUNT);
+    await ensureMinProducts(t.id, MIN_COUNT);
+  }
+
+  // 9) Ensure AT LEAST 20 members per tenant (create additional demo users)
+  async function ensureMinMembersPerTenant(tenantSlug: string, tenantId: string, minMembers: number) {
+    const roles = await getTenantRoles(tenantId);
+    const currentCount = await prisma.membership.count({ where: { tenantId } });
+
+    // We will add 20 deterministic members regardless of current count,
+    // which guarantees >= 20 memberships per tenant.
+    const needed = Math.max(0, minMembers - currentCount);
+    const toCreate = Math.max(needed, minMembers); // create a block of 20 deterministic ones
+
+    // To keep it simple/deterministic: always seed member01..member20 for each tenant.
+    for (let i = 1; i <= minMembers; i++) {
+      const tag = `${tenantSlug}-${pad2(i)}`;
+      const email = `member${pad2(i)}+${tenantSlug}@example.com`;
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: {},
+        create: {
+          email,
+          name: `Member ${pad2(i)} (${tenantSlug})`,
+          role: "USER",
+          passwordHash: await bcrypt.hash("Member123!", 10),
+        },
+      });
+
+      // Rotate roles for variety
+      const roleId =
+        i % 6 === 0 ? roles.OWNER.id :
+        i % 3 === 0 ? roles.ADMIN.id :
+        i % 2 === 0 ? roles.EDITOR.id :
+        roles.READONLY.id;
+
+      await setMember(tenantId, user.id, roleId);
+    }
+  }
+
+  await ensureMinMembersPerTenant(tenantA.slug, tenantA.id, MIN_COUNT);
+  await ensureMinMembersPerTenant(tenantB.slug, tenantB.id, MIN_COUNT);
 
   console.log("Seeded OK:", {
     tenants: [tenantA.slug, tenantB.slug],
@@ -353,6 +488,7 @@ async function main() {
       "admin@example.com", "superadmin@example.com",
       "owner+default@example.com", "admin+default@example.com", "editor+default@example.com", "ro+default@example.com",
       "owner+acme@example.com", "admin+acme@example.com", "editor+acme@example.com", "ro+acme@example.com",
+      // plus memberXX+tenant@example.com created above
     ],
   });
 

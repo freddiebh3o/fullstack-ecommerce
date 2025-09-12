@@ -9,7 +9,7 @@ import ThemeToggle from "@/components/theme/theme-toggle";
 import { ToastProvider } from "@/components/ui/toast-provider";
 import { db } from "@/lib/db/prisma";
 import TenantSwitcher from "@/components/admin/tenant-switcher";
-import TenantCookieGuard from "@/components/admin/TenantCookieGuard";
+import TenantCookieGuard from "@/components/admin/tenant-cookie-guard";
 import { getCurrentTenantId } from "@/lib/tenant/resolve";
 import { can } from "@/lib/auth/permissions";
 

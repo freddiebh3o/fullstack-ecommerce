@@ -1,8 +1,19 @@
 // src/components/admin/product-table.tsx
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
@@ -13,7 +24,9 @@ const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
 });
 
 function formatPrice(amount: number, currency = "GBP") {
-  return new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(amount);
+  return new Intl.NumberFormat("en-GB", { style: "currency", currency }).format(
+    amount
+  );
 }
 
 type ProductRow = {
@@ -26,12 +39,12 @@ type ProductRow = {
   createdAt: string | Date;
   category?: { name: string | null } | null;
   brand?: { name: string | null } | null;
-  images: { id: string; url: string }[];
+  images?: { id: string; url: string }[];
 };
 
 export default function ProductTable({
   products,
-  mayWrite, // ✅ new prop
+  mayWrite,
 }: {
   products: ProductRow[];
   mayWrite: boolean;
@@ -53,7 +66,9 @@ export default function ProductTable({
         const body = await res.json();
         if (body?.error?.message) msg = body.error.message;
       } catch {
-        try { msg = await res.text(); } catch {}
+        try {
+          msg = await res.text();
+        } catch {}
       }
 
       if (!res.ok) {
@@ -69,65 +84,89 @@ export default function ProductTable({
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left">
-          <tr className="text-foreground">
-            <th className="px-4 py-3">Name</th>
-            <th className="px-4 py-3">Category</th>
-            <th className="px-4 py-3">Brand</th>
-            <th className="px-4 py-3">Price</th>
-            <th className="px-4 py-3">Stock</th>
-            <th className="px-4 py-3">Created</th>
-            <th className="px-4 py-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {products.map((p) => (
-            <tr key={p.id} className="border-t">
-              <td className="px-4 py-3">
-                <div className="font-medium">{p.name}</div>
-                <div className="text-muted-foreground">{p.slug}</div>
-              </td>
-              <td className="px-4 py-3">{p.category?.name ?? "—"}</td>
-              <td className="px-4 py-3">{p.brand?.name ?? "—"}</td>
-              <td className="px-4 py-3">{formatPrice(p.priceCents / 100, p.currency || "GBP")}</td>
-              <td className="px-4 py-3">{p.stock ?? 0}</td>
-              <td className="px-4 py-3">{DATE_FMT.format(new Date(p.createdAt))}</td>
-              <td className="px-4 py-3 text-right">
-                <div className="inline-flex items-center gap-2">
-                  <a
-                    href={mayWrite ? `/admin/products/${p.id}/edit` : "#"}
-                    className={`underline hover:no-underline ${mayWrite ? "" : "pointer-events-none opacity-40"}`}
-                    aria-disabled={!mayWrite}
-                    title={mayWrite ? "Edit" : "You don’t have permission to edit"}
-                  >
-                    Edit
-                  </a>
-                  <button
-                    onClick={() => mayWrite && handleDelete(p.id, p.name)}
-                    disabled={!mayWrite || busyId === p.id || isPending}
-                    className={`text-destructive underline hover:no-underline disabled:opacity-50 ${
-                      mayWrite ? "" : "cursor-not-allowed"
-                    }`}
-                    title={mayWrite ? "Delete" : "You don’t have permission to delete"}
-                  >
-                    {busyId === p.id ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+    <div className="rounded-xl border bg-card shadow-sm">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead>Category</TableHead>
+            <TableHead>Brand</TableHead>
+            <TableHead>Price</TableHead>
+            <TableHead>Stock</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
 
-          {products.length === 0 && (
-            <tr>
-              <td className="px-4 py-10 text-center text-muted-foreground" colSpan={7}>
+        <TableBody>
+          {products.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                 No products yet.
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
+          ) : (
+            products.map((p) => {
+              const deleting = busyId === p.id || isPending;
+              return (
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <div className="font-medium">{p.name}</div>
+                    <div className="text-muted-foreground">{p.slug}</div>
+                  </TableCell>
+                  <TableCell>{p.category?.name ?? "—"}</TableCell>
+                  <TableCell>{p.brand?.name ?? "—"}</TableCell>
+                  <TableCell>
+                    {formatPrice((p.priceCents ?? 0) / 100, p.currency || "GBP")}
+                  </TableCell>
+                  <TableCell>{p.stock ?? 0}</TableCell>
+                  <TableCell>{DATE_FMT.format(new Date(p.createdAt))}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1.5">
+                      {/* Edit icon button */}
+                      {mayWrite ? (
+                        <Button
+                          asChild
+                          size="icon"
+                          title="Edit product"
+                          aria-label="Edit product"
+                        >
+                          <Link href={`/admin/products/${p.id}/edit`}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          size="icon"
+                          disabled
+                          title="You don’t have permission to edit"
+                          aria-label="Edit product (no permission)"
+                        >
+                          <Pencil className="h-4 w-4 opacity-40" />
+                        </Button>
+                      )}
+
+                      {/* Delete icon button */}
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => mayWrite && handleDelete(p.id, p.name)}
+                        disabled={!mayWrite || deleting}
+                        aria-disabled={!mayWrite || deleting}
+                        aria-busy={deleting}
+                        title={mayWrite ? (deleting ? "Deleting…" : "Delete product") : "You don’t have permission to delete"}
+                        aria-label={mayWrite ? (deleting ? "Deleting product" : "Delete product") : "Delete product (no permission)"}
+                      >
+                        <Trash2 className={`h-4 w-4 ${deleting ? "opacity-50" : ""}`} />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
