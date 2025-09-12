@@ -1,25 +1,69 @@
 // src/app/admin/roles/page.tsx
+import Link from "next/link";
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
 import { db } from "@/lib/db/prisma";
-import RolesTable from "@/components/admin/roles-table";
 import { can } from "@/lib/auth/permissions";
+import AdminIndexShell from "@/components/admin/index/admin-index-shell";
+import DataToolbar from "@/components/admin/index/data-toolbar";
+import DataPager from "@/components/admin/index/data-pager";
+import RolesTable from "@/components/admin/roles-table";
+import { Prisma } from "@prisma/client";
+import { parseIndexQuery } from "@/lib/paging/query";
+import { Button } from "@/components/ui/button";
 
-export default async function RolesPage() {
-  // Require manage permission to view
+export default async function RolesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const perm = await ensurePagePermission("role.manage");
   if (!perm.allowed) return <ForbiddenPage />;
-
   const { tenantId } = perm;
 
-  const roles = await db.role.findMany({
-    where: { tenantId },
-    orderBy: [{ builtin: "desc" }, { key: "asc" }],
-    include: {
-      permissions: { select: { permission: { select: { key: true } } } },
-      _count: { select: { memberships: true } },
-    },
-  });
+  const mayManage = await can("role.manage", tenantId);
+
+  const sp = (await searchParams) ?? {};
+  const q = parseIndexQuery(sp);
+
+  // Sort map (NO createdAt on Role)
+  const sortMap: Record<string, Prisma.RoleOrderByWithRelationInput> = {
+    name: { name: q.dir },
+    key: { key: q.dir },
+    builtin: { builtin: q.dir },
+    members: { memberships: { _count: q.dir } } as any,
+  };
+  const orderBy = sortMap[q.sort] ?? sortMap.name;
+
+  const where: Prisma.RoleWhereInput = {
+    tenantId,
+    ...(q.q
+      ? {
+          OR: [
+            { name: { contains: q.q, mode: Prisma.QueryMode.insensitive } },
+            { key: { contains: q.q, mode: Prisma.QueryMode.insensitive } },
+            { permissions: { some: { permission: { key: { contains: q.q, mode: Prisma.QueryMode.insensitive } } } } },
+          ],
+        }
+      : {}),
+  };
+
+  const skip = (q.page - 1) * q.per;
+  const take = q.per;
+
+  const [roles, total] = await Promise.all([
+    db.role.findMany({
+      where,
+      orderBy,
+      skip,
+      take,
+      include: {
+        permissions: { select: { permission: { select: { key: true } } } },
+        _count: { select: { memberships: true } },
+      },
+    }),
+    db.role.count({ where }),
+  ]);
 
   const rows = roles.map((r) => ({
     id: r.id,
@@ -31,20 +75,54 @@ export default async function RolesPage() {
     members: r._count.memberships,
   }));
 
-  // Already required above, but keep for consistency if you relax the page guard later.
-  const mayManage = await can("role.manage", tenantId);
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Roles</h1>
-        {mayManage ? (
-          <a className="underline" href="/admin/roles/new">New role</a>
-        ) : null}
-      </div>
+    <AdminIndexShell
+      title="Roles"
+      description="Define and manage tenant roles & permissions."
+      action={
+        mayManage ? (
+          <Button asChild>
+            <Link href="/admin/roles/new">New Role</Link>
+          </Button>
+        ) : undefined
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-3">
+        {/* Toolbar (no date filter) */}
+        <DataToolbar
+          search={{ name: "q", value: q.q || "", placeholder: "Search name, key, or permission…", label: "Search" }}
+          filters={[]}
+          sort={q.sort}
+          dir={q.dir}
+          per={q.per}
+          perOptions={[10, 20, 50, 100]}
+          sortOptions={[
+            { value: "name", label: "Name" },
+            { value: "key", label: "Key" },
+            { value: "members", label: "Members" },
+            { value: "builtin", label: "Built-in" },
+          ]}
+          collapsible={true}
+        />
 
-      {/* pass the boolean down */}
-      <RolesTable roles={rows} mayManage={mayManage} />
-    </div>
+        {/* Table */}
+        <div className="min-h-0 flex-1">
+          <RolesTable roles={rows} mayManage={mayManage} />
+        </div>
+
+        {/* Pager */}
+        <div className="pt-1">
+          <DataPager
+            basePath="/admin/roles"
+            page={q.page}
+            per={q.per}
+            total={total}
+            q={q.q}
+            sort={q.sort}
+            dir={q.dir}
+          />
+        </div>
+      </div>
+    </AdminIndexShell>
   );
 }

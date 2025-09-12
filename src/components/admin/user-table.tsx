@@ -1,8 +1,20 @@
 // src/components/admin/user-table.tsx
 "use client";
 
+import Link from "next/link";
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Pencil, Trash2 } from "lucide-react";
+import { useToast } from "@/components/ui/toast-provider";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -27,73 +39,115 @@ export default function UserTable({
   currentUserId: string | null;
 }) {
   const router = useRouter();
+  const { push: toast } = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function handleDelete(u: Row) {
-    if (!confirm(`Delete ${u.email}?`)) return;
+    if (!confirm(`Delete ${u.email}? This cannot be undone.`)) return;
     setBusyId(u.id);
     try {
       const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
+
+      let msg = "Failed to delete user.";
+      try {
+        const body = await res.json();
+        if (body?.error?.message) msg = body.error.message;
+      } catch {
+        try { msg = await res.text(); } catch {}
+      }
+
       if (!res.ok) {
-        const msg = await res.text();
-        alert(`Failed to delete: ${msg}`);
+        toast({ title: "Delete failed", message: msg, variant: "destructive" });
         return;
       }
+
       startTransition(() => router.refresh());
+      toast({ message: "User deleted" });
     } finally {
       setBusyId(null);
     }
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left">
-          <tr className="text-foreground">
-            <th className="px-4 py-3">Email</th>
-            <th className="px-4 py-3">Name</th>
-            <th className="px-4 py-3">Role</th>
-            <th className="px-4 py-3">Created</th>
-            <th className="px-4 py-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => {
-            const isSelf = currentUserId === u.id;
-            return (
-              <tr key={u.id} className="border-t">
-                <td className="px-4 py-3 font-medium">{u.email}</td>
-                <td className="px-4 py-3">{u.name ?? "—"}</td>
-                <td className="px-4 py-3">
-                  {u.role === "USER" ? "Customer" : u.role === "ADMIN" ? "Admin" : "Superadmin"}
-                </td>
-                <td className="px-4 py-3">{DATE_FMT.format(new Date(u.createdAt))}</td>
-                <td className="px-4 py-3 text-right">
-                  <a href={`/admin/users/${u.id}/edit`} className="mr-2 underline hover:no-underline">
-                    Edit
-                  </a>
-                  <button
-                    onClick={() => handleDelete(u)}
-                    disabled={busyId === u.id || isPending || isSelf}
-                    className="text-destructive underline hover:no-underline disabled:opacity-50"
-                    title={isSelf ? "You cannot delete your own account" : undefined}
-                  >
-                    {busyId === u.id ? "Deleting..." : "Delete"}
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-          {users.length === 0 && (
-            <tr>
-              <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                No users yet.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+    <div className="flex min-h-0 flex-1 rounded-xl border bg-card shadow-sm">
+      <div className="min-h-0 flex-1 overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Email</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Role</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {users.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  No users yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              users.map((u) => {
+                const isSelf = currentUserId === u.id;
+                const deleting = busyId === u.id || isPending;
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.email}</TableCell>
+                    <TableCell>{u.name ?? "—"}</TableCell>
+                    <TableCell>
+                      {u.role === "USER" ? "Customer" : u.role === "ADMIN" ? "Admin" : "Superadmin"}
+                    </TableCell>
+                    <TableCell>{DATE_FMT.format(new Date(u.createdAt))}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          asChild
+                          size="icon"
+                          title="Edit user"
+                          aria-label="Edit user"
+                        >
+                          <Link href={`/admin/users/${u.id}/edit`}>
+                            <Pencil className="h-4 w-4" />
+                          </Link>
+                        </Button>
+
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDelete(u)}
+                          disabled={deleting || isSelf}
+                          aria-disabled={deleting || isSelf}
+                          aria-busy={deleting}
+                          title={
+                            isSelf
+                              ? "You cannot delete your own account"
+                              : deleting
+                                ? "Deleting…"
+                                : "Delete user"
+                          }
+                          aria-label={
+                            isSelf
+                              ? "Delete user (not allowed on self)"
+                              : deleting
+                                ? "Deleting user"
+                                : "Delete user"
+                          }
+                        >
+                          <Trash2 className={`h-4 w-4 ${deleting ? "opacity-50" : ""}`} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

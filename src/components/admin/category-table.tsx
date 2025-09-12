@@ -1,17 +1,20 @@
 // src/components/admin/category-table.tsx
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { useToast } from "../ui/toast-provider";
-
-type Row = {
-  id: string;
-  name: string;
-  slug: string;
-  createdAt: string | Date;
-  _count: { products: number };
-};
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+import { Pencil, Trash2 } from "lucide-react";
+import { useToast } from "@/components/ui/toast-provider";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -20,11 +23,19 @@ const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   day: "2-digit",
 });
 
+type CategoryRow = {
+  id: string;
+  name: string | null;
+  slug: string;
+  createdAt: string | Date;
+  _count: { products: number };
+};
+
 export default function CategoryTable({
   categories,
-  mayWrite,               // ✅ new prop
+  mayWrite,
 }: {
-  categories: Row[];
+  categories: CategoryRow[];
   mayWrite: boolean;
 }) {
   const router = useRouter();
@@ -32,12 +43,13 @@ export default function CategoryTable({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  async function handleDelete(id: string, name: string) {
-    if (!mayWrite) return; // guard
-    if (!confirm(`Delete "${name}"? This will detach products from it.`)) return;
+  async function handleDelete(id: string, name: string | null) {
+    if (!mayWrite) return;
+    if (!confirm(`Delete category "${name || "Untitled"}"? This cannot be undone.`)) return;
     setBusyId(id);
     try {
       const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
+
       let msg = "Failed to delete category.";
       try {
         const body = await res.json();
@@ -45,71 +57,110 @@ export default function CategoryTable({
       } catch {
         try { msg = await res.text(); } catch {}
       }
+
       if (!res.ok) {
         toast({ title: "Delete failed", message: msg, variant: "destructive" });
         return;
       }
-      toast({ message: "Category deleted" });
+
       startTransition(() => router.refresh());
+      toast({ message: "Category deleted" });
     } finally {
       setBusyId(null);
     }
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card shadow-sm">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left">
-          <tr className="text-foreground">
-            <th className="px-4 py-3">Name</th>
-            <th className="px-4 py-3">Slug</th>
-            <th className="px-4 py-3">Products</th>
-            <th className="px-4 py-3">Created</th>
-            <th className="px-4 py-3 text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {categories.map((c) => (
-            <tr key={c.id} className="border-t">
-              <td className="px-4 py-3 font-medium">{c.name}</td>
-              <td className="px-4 py-3 text-muted-foreground">{c.slug}</td>
-              <td className="px-4 py-3">{c._count.products}</td>
-              <td className="px-4 py-3">{DATE_FMT.format(new Date(c.createdAt))}</td>
-              <td className="px-4 py-3 text-right">
-                <div className="inline-flex items-center gap-2">
-                  <a
-                    href={mayWrite ? `/admin/categories/${c.id}/edit` : "#"}
-                    className={`underline hover:no-underline ${
-                      mayWrite ? "" : "pointer-events-none opacity-40"
-                    }`}
-                    aria-disabled={!mayWrite}
-                    title={mayWrite ? "Edit" : "You don’t have permission to edit"}
-                  >
-                    Edit
-                  </a>
-                  <button
-                    onClick={() => handleDelete(c.id, c.name)}
-                    disabled={!mayWrite || busyId === c.id || isPending}
-                    className={`text-destructive underline hover:no-underline disabled:opacity-50 ${
-                      mayWrite ? "" : "cursor-not-allowed"
-                    }`}
-                    title={mayWrite ? "Delete" : "You don’t have permission to delete"}
-                  >
-                    {busyId === c.id ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-          {categories.length === 0 && (
-            <tr>
-              <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                No categories yet.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+    <div className="flex min-h-0 flex-1 rounded-xl border bg-card shadow-sm overflow-y-hidden">
+      <div className="min-h-0 flex-1 overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Slug</TableHead>
+              <TableHead>Products</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {categories.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                  No categories yet.
+                </TableCell>
+              </TableRow>
+            ) : (
+              categories.map((c) => {
+                const deleting = busyId === c.id || isPending;
+                return (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <div className="font-medium">{c.name || "Untitled"}</div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{c.slug}</TableCell>
+                    <TableCell>{c._count.products}</TableCell>
+                    <TableCell>{DATE_FMT.format(new Date(c.createdAt))}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1.5">
+                        {/* Edit */}
+                        {mayWrite ? (
+                          <Button
+                            asChild
+                            size="icon"
+                            title="Edit category"
+                            aria-label="Edit category"
+                          >
+                            <Link href={`/admin/categories/${c.id}/edit`}>
+                              <Pencil className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        ) : (
+                          <Button
+                            size="icon"
+                            disabled
+                            title="You don't have permission to edit"
+                            aria-label="Edit category (no permission)"
+                          >
+                            <Pencil className="h-4 w-4 opacity-40" />
+                          </Button>
+                        )}
+
+                        {/* Delete */}
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => mayWrite && handleDelete(c.id, c.name)}
+                          disabled={!mayWrite || deleting}
+                          aria-disabled={!mayWrite || deleting}
+                          aria-busy={deleting}
+                          title={
+                            mayWrite
+                              ? deleting
+                                ? "Deleting…"
+                                : "Delete category"
+                              : "You don't have permission to delete"
+                          }
+                          aria-label={
+                            mayWrite
+                              ? deleting
+                                ? "Deleting category"
+                                : "Delete category"
+                              : "Delete category (no permission)"
+                          }
+                        >
+                          <Trash2 className={`h-4 w-4 ${deleting ? "opacity-50" : ""}`} />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }

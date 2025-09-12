@@ -84,7 +84,7 @@ export default function ProductTable({
   }
 
   return (
-    <div className="rounded-xl border bg-card shadow-sm">
+    <div className="rounded-xl border bg-card shadow-sm overflow-y-hidden">
       <Table>
         <TableHeader>
           <TableRow>
