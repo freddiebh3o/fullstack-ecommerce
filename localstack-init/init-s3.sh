@@ -25,7 +25,17 @@ JSON
 
 awslocal s3api put-bucket-cors \
   --bucket "$BUCKET" \
-  --cors-configuration file:///tmp/cors.json
+  --cors-configuration '{
+  "CORSRules": [
+    {
+      "AllowedOrigins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+      "AllowedMethods": ["GET","PUT","POST","HEAD"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag"],
+      "MaxAgeSeconds": 600
+    }
+  ]
+}'
 
 # Public read policy for objects (so you can load images directly)
 cat >/tmp/policy.json <<JSON

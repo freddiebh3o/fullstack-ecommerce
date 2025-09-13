@@ -12,14 +12,14 @@ import TenantSwitcher from "@/components/admin/tenant-switcher";
 import TenantCookieGuard from "@/components/admin/tenant-cookie-guard";
 import { getCurrentTenantId } from "@/lib/tenant/resolve";
 import { can } from "@/lib/auth/permissions";
-
 import { getBrandingForTenant } from "@/lib/branding/get-branding";
 import { themeToScopedCss } from "@/lib/branding/css-vars";
+import { getCspNonce } from "@/lib/security/get-csp-nonce";
+
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions);
   const sysRole = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
-
   const isSuper = sysRole === "SUPERADMIN" || sysRole === "ADMIN";
 
   const tenants =
@@ -41,24 +41,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     { href: "/admin/categories", label: "Categories", visible: false },
     { href: "/admin/brands", label: "Brands", visible: false },
     { href: "/admin/members", label: "Members", visible: false },
-    { href: "/admin/users", label: "Users", visible: isSuper }, // system-level
+    { href: "/admin/users", label: "Users", visible: isSuper },
     { href: "/admin/roles", label: "Roles", visible: false },
     { href: "/admin/branding", label: "Branding", visible: false },
   ];
 
   if (currentTenantId) {
     const [
-      prodRead,
-      prodWrite,
-      catRead,
-      catWrite,
-      brandRead,
-      brandWrite,
-      memRead,
-      memManage,
-      roleManage,
-      brandingRead,
-      brandingWrite,
+      prodRead, prodWrite, catRead, catWrite, brandRead, brandWrite,
+      memRead, memManage, roleManage, brandingRead, brandingWrite,
     ] = await Promise.all([
       can("product.read", currentTenantId),
       can("product.write", currentTenantId),
@@ -80,46 +71,40 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     const canSeeRoles = roleManage;
     const canSeeBranding = brandingRead || brandingWrite;
 
-    // dashboard if they can see *anything* tenant-scoped
     const canSeeDashboard =
       canSeeProducts || canSeeCategories || canSeeBrands || canSeeMembers || canSeeRoles || canSeeBranding;
 
     links = links.map((l) => {
       switch (l.href) {
-        case "/admin":
-          return { ...l, visible: canSeeDashboard };
-        case "/admin/products":
-          return { ...l, visible: canSeeProducts };
-        case "/admin/categories":
-          return { ...l, visible: canSeeCategories };
-        case "/admin/brands":
-          return { ...l, visible: canSeeBrands };
-        case "/admin/members":
-          return { ...l, visible: canSeeMembers };
-        case "/admin/roles":
-          return { ...l, visible: canSeeRoles };
-        case "/admin/branding":
-          return { ...l, visible: canSeeBranding };
-        default:
-          return l; // users already set by isSuper
+        case "/admin": return { ...l, visible: canSeeDashboard };
+        case "/admin/products": return { ...l, visible: canSeeProducts };
+        case "/admin/categories": return { ...l, visible: canSeeCategories };
+        case "/admin/brands": return { ...l, visible: canSeeBrands };
+        case "/admin/members": return { ...l, visible: canSeeMembers };
+        case "/admin/roles": return { ...l, visible: canSeeRoles };
+        case "/admin/branding": return { ...l, visible: canSeeBranding };
+        default: return l;
       }
     });
   }
 
-  // ✨ Load tenant branding (with defaults fallback) and build CSS
+  // ✨ Load tenant branding and build CSS
   const branding = currentTenantId ? await getBrandingForTenant(currentTenantId) : null;
   const brandingCss = branding ? themeToScopedCss(branding) : "";
+  const nonce = await getCspNonce();
   const sidebarLogoUrl = branding?.logoUrl ?? null;
 
   return (
-    <AdminThemeProvider>
+    <AdminThemeProvider nonce={nonce ?? undefined}>
       <ToastProvider>
-        {/* ensure cookie is synced to valid tenant (no-op if already set) */}
         <TenantCookieGuard tenantId={currentTenantId} />
 
-        {/* ✨ Inject per-tenant CSS variables (scoped to [data-admin]) */}
         {brandingCss ? (
-          <style id="tenant-branding-vars" dangerouslySetInnerHTML={{ __html: brandingCss }} />
+          <style
+            id="tenant-branding-vars"
+            nonce={nonce ?? undefined} // <-- important for CSP in prod
+            dangerouslySetInnerHTML={{ __html: brandingCss }}
+          />
         ) : null}
 
         <div data-admin className="grid min-h-screen grid-cols-1 lg:grid-cols-[260px_1fr]">

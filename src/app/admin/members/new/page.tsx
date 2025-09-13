@@ -3,7 +3,6 @@ import { db } from "@/lib/db/prisma";
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
 import NewMemberForm from "@/components/admin/new-member-form";
-
 export default async function NewMemberPage() {
   const perm = await ensurePagePermission("member.manage");
   if (!perm.allowed) return <ForbiddenPage />;

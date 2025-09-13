@@ -540,6 +540,101 @@ awslocal s3 mb s3://ecom-dev-bucket
 
 ---
 
+## Security Features (Current)
+
+This repo includes a practical, defense-in-depth baseline suitable for a learning/demo app. Below is a concise summary of what is **already implemented**. 
+
+### TL;DR
+- **CSP + nonces** to block inline script execution unless explicitly allowed.
+- **CSRF protection** using a double-submit token (`csrf` cookie + `x-csrf-token` header).
+- **Origin/Referer checks** on mutating requests.
+- **Locked-down CORS** (app origin only in dev/prod, minimal allowances).
+- **Global security headers** (clickjacking, MIME sniffing, permissions, referrer).
+- **Admin auth guard** in middleware (session/expiry → login with reason).
+- **Tenant isolation by convention** (every catalog query scoped by `tenantId` + 404 on cross-tenant IDs).
+- **Audit logging** for sensitive writes.
+- **Safe upload flow** (presigned URLs to S3-compatible storage; tenant-scoped keys; sanitized filenames).
+
+---
+
+### Browser-Side Protections
+
+#### Content Security Policy (CSP) with Per-Request Nonces
+- Middleware generates a **random nonce per request** and injects it into:
+  - The **`Content-Security-Policy`** response header:  
+    `script-src 'self' 'nonce-<value>' 'strict-dynamic' ...`
+  - Any **inline tags we intentionally allow** (e.g., tenant branding `<style>`).
+- **Effect:** Browsers will **only execute inline code** that carries the matching nonce. Any injected script without the nonce will be blocked.
+- Images (`img-src`) and network (`connect-src`) are **allow-listed** (e.g., app origin, LocalStack S3).
+- We keep **styles pragmatic**: inline style elements are allowed so framework-inserted styles don’t break, but we **still nonce our branding style** for defense-in-depth.
+- Also set: `frame-ancestors 'self'` to prevent clickjacking via iframes.
+
+#### Other Security Headers
+- `X-Content-Type-Options: nosniff` — blocks MIME sniffing.
+- `Referrer-Policy: strict-origin-when-cross-origin` — limits cross-site referrer leakage.
+- `Permissions-Policy` — disables sensitive browser features by default.
+- `X-Frame-Options: DENY`, `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-site` — harden isolation.
+
+> Dev mode keeps minimal relaxations (e.g., for HMR) while production stays strict.
+
+---
+
+### Request-Side Protections
+
+#### CSRF (Double-Submit Token)
+- All **mutations** (POST/PUT/PATCH/DELETE) require a **CSRF token**:
+  - A `csrf` cookie is set on the client.
+  - Clients must send **`x-csrf-token`** header with the same value.
+- Server validates the pair. If missing/invalid → **400/403**.
+
+#### Origin/Referer Validation
+- On mutating requests, the server validates **`Origin`/`Referer`** to match the **app origin**.
+- Rejects cross-site posts even if a CSRF token somehow leaked.
+
+#### CORS Posture
+- Locked down by default to **the app’s own origin**.
+- No cross-site credentialed requests permitted.
+- Dev includes localhost allowances only.
+
+---
+
+### Authentication & RBAC Enforcement
+- Middleware protects **`/admin/*`** — unauthenticated or expired sessions are redirected to `/login` with a helpful `reason` (e.g., `expired`, `unauthenticated`).
+- Server pages and APIs use **permission guards** (`withTenantPermission`, `withAnyTenantPermission`, `withSystemRole`).
+- Login and session handled with **NextAuth (JWT)**; short/rotating policies can be tuned with env.
+
+---
+
+### Tenant Isolation (By Convention, Today)
+- All catalog entities include **`tenantId`**, and **every read/write in app code scopes by `tenantId`**.
+- Cross-tenant record access returns **404 (Not Found)** to avoid existence leaks.
+- Slugs are **unique per tenant** (DB unique constraint on `[tenantId, slug]`).
+
+> A Prisma `$extends` and/or DB-level RLS are on the roadmap for stronger guarantees, but not required to benefit from the current pattern.
+
+---
+
+### Auditing
+- Sensitive writes call `audit(tenantId, userId, action, payload)` and persist to the `AuditLog` model.
+- Useful for forensics and operator visibility. (Viewer UI is planned; rows are visible today via DB/Prisma Studio.)
+
+---
+
+### Upload Safety (Current)
+- Clients obtain a **presigned URL** and upload **directly** to S3-compatible storage (LocalStack) — server never handles file bytes.
+- Keys are **tenant-scoped** (e.g., `tenants/<tenantId>/...`); filenames are **sanitized/slugified**.
+- (Planned hardening: magic-number MIME sniffing, size/dimension caps, SVG sanitization.)
+
+---
+
+### Developer Notes
+- **Adding inline scripts?** Avoid when possible. If necessary, add `nonce={nonce}` server-side and ensure middleware is injecting the nonce header.
+- **Adding inline styles?** Allowed; for sensitive/critical styles use a nonce like the branding block.
+- **Fetching from new hosts?** Add them to `ALLOWED_CONNECT_HOSTS`/`ALLOWED_IMG_HOSTS` and (if needed) Next.js `remotePatterns`.
+- **Local dev vs prod:** CSP is slightly more permissive in dev (e.g., eval for HMR); production stays strict.
+
+---
+
 ## Security Notes (Why not Production?)
 - No rate limiting or advanced WAF.
 - No password reset / email verification flow.
@@ -641,6 +736,8 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ### 🚧 Planned Epics
 
+### [P1 Fix all errors on build]
+
 ### [P1] Epic: CSRF, CORS & Security Headers
 **Scope:** Prevent cross-site attacks and tighten browser posture.  
 **📍 Blast radius:** **Global** — middleware + **all mutating routes** and any client that performs POST/PUT/PATCH/DELETE.  
@@ -648,21 +745,42 @@ This section tracks which larger feature areas (Epics) have already been integra
 **🔀 Parallelizable:** High (headers/CSP in middleware; CSRF token plumbing in parallel across forms)  
 **RBAC:** N/A (framework-level).
 
-- [ ] Double-submit **CSRF** token for all mutations: `csrf` cookie + `x-csrf-token` header.
+- [x] Double-submit **CSRF** token for all mutations: `csrf` cookie + `x-csrf-token` header.
   - _Why:_ Cookie-backed sessions are CSRF-prone; token blocks cross-site form/posts.
   - _Replaces:_ No CSRF defense today (not production-safe).
-- [ ] Strict **Origin/Referer** checks on `POST/PUT/PATCH/DELETE`.
+- [x] Strict **Origin/Referer** checks on `POST/PUT/PATCH/DELETE`.
   - _Why:_ Secondary guard if CSRF token leaks; rejects cross-origin mutations.
   - _Replaces:_ No origin validation today.
-- [ ] Locked-down **CORS**: deny all except app origin; no credentials for public GET unless required.
+- [x] Locked-down **CORS**: deny all except app origin; no credentials for public GET unless required.
   - _Why:_ Stops unauth origins from calling APIs with creds.
   - _Replaces:_ Implicit/loose CORS behavior.
-- [ ] Global security headers via middleware: CSP (script/img/connect/frame), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`.
+- [x] Global security headers via middleware: CSP (script/img/connect/frame), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`.
   - _Why:_ Mitigates XSS, clickjacking, data exfiltration; enforces allowed sources (e.g., S3/LocalStack).
   - _Replaces:_ Default headers (too permissive for prod).
+- [ ] FOUND AN ISSUE WITH CORS BLOCKING IMAGES ON THE BRAND PAGE. PROBABLY BECAUSE THEY ARE COMING FROM A RANDOM WEBSITE WHICH IS BEING BLOCKED.
 - [ ] Unit/integration tests (expected rejections + good path).
   - _Why:_ Prevent regressions on future routes.
   - _Replaces:_ Ad-hoc manual validation.
+
+**💰 Cost:** none.
+
+---
+
+### [P1] Epic: Test Suite (Unit + Security)
+**📍 Blast radius:** **Global** — adds tests across modules; minimal production code churn.  
+**🧭 Complexity (t-shirt):** **L** (breadth, not difficulty)  
+**🔀 Parallelizable:** Very high (by module/suite)  
+**RBAC:** N/A.
+
+- [ ] **Unit:** validators, guards, slug rules, helpers (`ok/error`, perms).
+  - _Why:_ Fast feedback on logic; prevents regressions.
+  - _Replaces:_ Sparse/no unit tests.
+- [ ] **Security:** CSRF failures, rate limits, upload spoofing, over-long inputs.
+  - _Why:_ Keeps defenses intact over time.
+  - _Replaces:_ None.
+- [ ] Coverage thresholds per folder; CI summary artifact.
+  - _Why:_ Keeps quality from drifting.
+  - _Replaces:_ No objective target.
 
 **💰 Cost:** none.
 
@@ -716,32 +834,6 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ---
 
-### [P1] Epic: Test Suite (Unit + Integration + E2E + Security)
-**Scope:** Expand “Unit testing” into full coverage of critical paths.  
-**📍 Blast radius:** **Global** — adds tests across modules; minimal production code churn.  
-**🧭 Complexity (t-shirt):** **L** (breadth, not difficulty)  
-**🔀 Parallelizable:** Very high (by module/suite)  
-**RBAC:** N/A.
-
-- [ ] **Unit:** validators, guards, slug rules, helpers (`ok/error`, perms).
-  - _Why:_ Fast feedback on logic; prevents regressions.
-  - _Replaces:_ Sparse/no unit tests.
-- [ ] **Integration:** API routes against test Postgres (Testcontainers); tenant scope & transactions.
-  - _Why:_ Validates server wiring & DB contracts.
-  - _Replaces:_ Manual testing.
-- [ ] **Security:** CSRF failures, rate limits, upload spoofing, over-long inputs.
-  - _Why:_ Keeps defenses intact over time.
-  - _Replaces:_ None.
-- [ ] **E2E (Playwright):** sign-in, switch tenant, CRUD flows, branding update, image upload.
-  - _Why:_ Prevents UI regressions in core flows.
-  - _Replaces:_ Click-through testing.
-- [ ] Coverage thresholds per folder; CI summary artifact.
-  - _Why:_ Keeps quality from drifting.
-  - _Replaces:_ No objective target.
-
-**💰 Cost:** none.
-
----
 
 ### [P1] Epic: Idempotency & Transactional Integrity
 **Scope:** Prevent duplicate writes and maintain invariants.  

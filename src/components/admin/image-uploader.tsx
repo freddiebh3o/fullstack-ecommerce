@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/misc";
-import { apiFetch } from "@/lib/http/apiFetch";
+import { apiFetch } from "@/lib/http/apiFetch"; // ✅ auto-CSRF now
 
 type PresignResponse = {
   url: string;
@@ -85,7 +85,7 @@ export default function ImageUploader({
     setLastUrl(null);
 
     try {
-      // Use apiFetch for our own API (handles 401→redirect)
+      // Our API call now auto-sends x-csrf-token via apiFetch
       const presignRes = await apiFetch("/api/admin/uploads/presign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -106,7 +106,7 @@ export default function ImageUploader({
       const presign: PresignResponse = await presignRes.json();
       if (presign.key) setLastKey(presign.key);
 
-      // Direct call to S3/Blob storage should stay as plain fetch
+      // Direct call to S3/Blob storage stays as plain fetch (no CSRF header needed)
       if (presign.method === "POST" && presign.fields) {
         const fd = new FormData();
         Object.entries(presign.fields).forEach(([k, v]) => fd.append(k, v));
@@ -117,13 +117,26 @@ export default function ImageUploader({
           return;
         }
       } else {
+        // Presigned PUT
+        // Build headers exactly as provided by the presign endpoint.
+        const putHeaders = new Headers();
+        for (const [k, v] of Object.entries(presign.headers || {})) {
+          putHeaders.set(k, v);
+        }
+        // IMPORTANT: do NOT add Content-Type unless it was in presign.headers.
+        // Many S3 signatures include the exact header set; extra headers = signature mismatch.
+      
         const s3Res = await fetch(presign.url, {
           method: "PUT",
-          headers: { "Content-Type": file.type, ...(presign.headers || {}) },
+          headers: putHeaders,
           body: file,
+          // mode: "cors" // (default in browsers; not required)
         });
+      
         if (!s3Res.ok) {
-          setError(`Upload failed (${s3Res.status}).`);
+          let extra = "";
+          try { extra = await s3Res.text(); } catch {}
+          setError(`Upload failed (${s3Res.status}). ${extra}`.trim());
           return;
         }
       }

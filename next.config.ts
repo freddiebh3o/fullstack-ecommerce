@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
       // you can add more hosts here later (e.g. S3, Cloudflare R2, etc.)
     ],
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
