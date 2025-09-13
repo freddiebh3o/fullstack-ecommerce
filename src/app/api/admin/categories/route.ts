@@ -8,15 +8,19 @@ import { audit } from "@/lib/audit/audit";
 
 const bodySchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  slug: z.string().min(2, "Slug must be at least 2 characters")
-         .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
+  slug: z
+    .string()
+    .min(2, "Slug must be at least 2 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
 });
 
 const querySchema = z.object({
   q: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  sort: z.enum(["createdAt:desc", "createdAt:asc", "name:asc", "name:desc"]).default("createdAt:desc"),
+  sort: z
+    .enum(["createdAt:desc", "createdAt:asc", "name:asc", "name:desc"])
+    .default("createdAt:desc"),
 });
 
 // GET /api/admin/categories  (category.read OR category.write)
@@ -68,7 +72,7 @@ export const GET = withAnyTenantPermission(
 // POST /api/admin/categories  (category.write)
 export const POST = withTenantPermission(
   "category.write",
-  async (req, { db, tenantId, session }) => { // <-- add session
+  async (req, { db, tenantId, session }) => {
     const body = await req.json();
     const parsed = bodySchema.safeParse(body);
     if (!parsed.success) {
@@ -86,7 +90,10 @@ export const POST = withTenantPermission(
       data: { tenantId, name: parsed.data.name, slug: normalizedSlug },
     });
 
-    await audit(db, tenantId, session.user.id, "category.create", { id: cat.id, name: cat.name }); // <-- session here
+    await audit(db, tenantId, session.user.id, "category.create", {
+      id: cat.id,
+      name: cat.name,
+    });
 
     return ok(cat, {
       status: 201,

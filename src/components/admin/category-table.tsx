@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -48,14 +49,16 @@ export default function CategoryTable({
     if (!confirm(`Delete category "${name || "Untitled"}"? This cannot be undone.`)) return;
     setBusyId(id);
     try {
-      const res = await fetch(`/api/admin/categories/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/admin/categories/${id}`, { method: "DELETE" });
 
       let msg = "Failed to delete category.";
       try {
         const body = await res.json();
         if (body?.error?.message) msg = body.error.message;
       } catch {
-        try { msg = await res.text(); } catch {}
+        try {
+          msg = await res.text();
+        } catch {}
       }
 
       if (!res.ok) {
@@ -104,7 +107,6 @@ export default function CategoryTable({
                     <TableCell>{DATE_FMT.format(new Date(c.createdAt))}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1.5">
-                        {/* Edit */}
                         {mayWrite ? (
                           <Button
                             asChild
@@ -127,7 +129,6 @@ export default function CategoryTable({
                           </Button>
                         )}
 
-                        {/* Delete */}
                         <Button
                           variant="destructive"
                           size="icon"

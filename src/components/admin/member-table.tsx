@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Trash2 } from "lucide-react";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -54,7 +55,7 @@ export default function MemberTable({
     if (!mayManage) return;
     setBusy(membershipId);
     try {
-      const res = await fetch(`/api/admin/members/${membershipId}`, {
+      const res = await apiFetch(`/api/admin/members/${membershipId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roleKey }),
@@ -85,7 +86,7 @@ export default function MemberTable({
     if (!confirm("Remove this member from the tenant?")) return;
     setBusy(membershipId);
     try {
-      const res = await fetch(`/api/admin/members/${membershipId}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/admin/members/${membershipId}`, { method: "DELETE" });
 
       let msg = "Failed to remove member.";
       try {

@@ -2,17 +2,16 @@
 "use client";
 
 import { signOut } from "next-auth/react";
-import { Button } from "@/components/ui/button";
 
-export default function SignOutButton() {
+type Props = { className?: string; children?: React.ReactNode };
+
+export default function SignOutButton({ className, children }: Props) {
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={() => signOut({ callbackUrl: "/" })}
-      className="rounded-md"
+    <button
+      className={className}
+      onClick={() => signOut({ callbackUrl: "/login" })}
     >
-      Sign out
-    </Button>
+      {children ?? "Sign out"}
+    </button>
   );
 }

@@ -7,8 +7,10 @@ import { audit } from "@/lib/audit/audit";
 
 const bodySchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  slug: z.string().min(2, "Slug must be at least 2 characters")
-         .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
+  slug: z
+    .string()
+    .min(2, "Slug must be at least 2 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
 });
 
 // GET /api/admin/categories/:id  (category.read OR category.write)
@@ -29,7 +31,7 @@ export const GET = withAnyTenantPermission(
 // PATCH /api/admin/categories/:id  (category.write)
 export const PATCH = withTenantPermission(
   "category.write",
-  async (req, { db, tenantId, params, session }) => {  // <-- add session
+  async (req, { db, tenantId, params, session }) => {
     const { id } = params as { id: string };
 
     const body = await req.json();
@@ -54,7 +56,10 @@ export const PATCH = withTenantPermission(
       data: { name: parsed.data.name, slug: normalizedSlug },
     });
 
-    await audit(db, tenantId, session.user.id, "category.update", { id: updated.id, name: updated.name }); // <-- session here
+    await audit(db, tenantId, session.user.id, "category.update", {
+      id: updated.id,
+      name: updated.name,
+    });
 
     return ok(updated);
   }
@@ -63,7 +68,7 @@ export const PATCH = withTenantPermission(
 // DELETE /api/admin/categories/:id  (category.write)
 export const DELETE = withTenantPermission(
   "category.write",
-  async (_req, { db, tenantId, params, session }) => { // <-- add session
+  async (_req, { db, tenantId, params, session }) => {
     const { id } = params as { id: string };
 
     const exists = await db.category.findFirst({ where: { id, tenantId }, select: { id: true } });
@@ -75,7 +80,7 @@ export const DELETE = withTenantPermission(
     }
 
     await db.category.delete({ where: { id } });
-    await audit(db, tenantId, session.user.id, "category.delete", { id }); // <-- session here
+    await audit(db, tenantId, session.user.id, "category.delete", { id });
 
     return ok({ id, deleted: true });
   }

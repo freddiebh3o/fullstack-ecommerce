@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const schema = z.object({
   email: z.string().email(),
@@ -30,7 +31,7 @@ export default function NewMemberForm({ roles }: { roles: { key: string; name: s
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch(`/api/admin/members`, {
+    const res = await apiFetch(`/api/admin/members`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
@@ -80,13 +81,13 @@ export default function NewMemberForm({ roles }: { roles: { key: string; name: s
               <FormLabel>Role</FormLabel>
               <FormControl>
                 <select
-          className="rounded-md border bg-background px-2 py-2"
-          {...field}
-        >
-          {roles.map((r) => (
-            <option key={r.key} value={r.key}>{r.name}</option>
-          ))}
-        </select>
+                  className="rounded-md border bg-background px-2 py-2"
+                  {...field}
+                >
+                  {roles.map((r) => (
+                    <option key={r.key} value={r.key}>{r.name}</option>
+                  ))}
+                </select>
               </FormControl>
               <FormMessage />
             </FormItem>

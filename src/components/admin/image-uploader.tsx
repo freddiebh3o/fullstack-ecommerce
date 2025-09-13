@@ -6,6 +6,7 @@ import { useRef, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils/misc";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 type PresignResponse = {
   url: string;
@@ -13,20 +14,20 @@ type PresignResponse = {
   headers?: Record<string, string>;
   fields?: Record<string, string>;
   publicUrl?: string;
-  key?: string; // ⬅️ include S3 key for debug display
+  key?: string;
 };
 
 type Props = {
-  scope: string;              // "products" | "brands" | ...
-  entityId: string;           // product/brand id or "drafts/<uuid>"
+  scope: string;
+  entityId: string;
   onUploaded: (url: string) => void;
-  currentUrl?: string | null; // existing image preview if any
-  accept?: string;            // default: "image/*"
-  maxBytes?: number;          // default: 10MB
+  currentUrl?: string | null;
+  accept?: string;
+  maxBytes?: number;
   className?: string;
   onClear?: () => void;
-  label?: string;             // optional label above the zone
-  debug?: boolean;            // ⬅️ show S3 key + status when true
+  label?: string;
+  debug?: boolean;
 };
 
 export default function ImageUploader({
@@ -45,9 +46,8 @@ export default function ImageUploader({
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // local object URL
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  // debug state
   const [lastKey, setLastKey] = useState<string | null>(null);
   const [lastUrl, setLastUrl] = useState<string | null>(null);
 
@@ -85,7 +85,8 @@ export default function ImageUploader({
     setLastUrl(null);
 
     try {
-      const presignRes = await fetch("/api/admin/uploads/presign", {
+      // Use apiFetch for our own API (handles 401→redirect)
+      const presignRes = await apiFetch("/api/admin/uploads/presign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -105,6 +106,7 @@ export default function ImageUploader({
       const presign: PresignResponse = await presignRes.json();
       if (presign.key) setLastKey(presign.key);
 
+      // Direct call to S3/Blob storage should stay as plain fetch
       if (presign.method === "POST" && presign.fields) {
         const fd = new FormData();
         Object.entries(presign.fields).forEach(([k, v]) => fd.append(k, v));
@@ -167,7 +169,6 @@ export default function ImageUploader({
     <div className={cn("grid gap-2", className)}>
       {label ? <div className="text-sm font-medium">{label}</div> : null}
 
-      {/* Single interactive dropzone with preview inside */}
       <div
         role="button"
         tabIndex={0}
@@ -184,7 +185,6 @@ export default function ImageUploader({
         )}
         aria-label="Upload image"
       >
-        {/* Preview background */}
         {activePreview ? (
           <Image
             src={activePreview}
@@ -199,7 +199,6 @@ export default function ImageUploader({
           </div>
         )}
 
-        {/* Top-right toolbar */}
         <div className="absolute right-2 top-2 flex gap-2">
           <Button
             type="button"
@@ -233,7 +232,6 @@ export default function ImageUploader({
           </Button>
         </div>
 
-        {/* Footer status / errors */}
         <div className="absolute inset-x-0 bottom-0 p-2">
           <div className="flex items-center justify-between rounded-md bg-background/70 px-2 py-1 text-xs backdrop-blur">
             <span className="text-muted-foreground">
@@ -247,7 +245,6 @@ export default function ImageUploader({
             </span>
           </div>
 
-          {/* Debug line (shows tenant-scoped S3 key + final URL) */}
           {debug && (lastKey || lastUrl) ? (
             <div className="mt-1 rounded-md bg-background/70 px-2 py-1 text-[10px] leading-tight text-muted-foreground backdrop-blur">
               {lastKey ? (

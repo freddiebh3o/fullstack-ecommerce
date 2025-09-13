@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -28,7 +29,7 @@ export default function EditCategoryForm({ id, initial }: { id: string; initial:
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch(`/api/admin/categories/${id}`, {
+    const res = await apiFetch(`/api/admin/categories/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),

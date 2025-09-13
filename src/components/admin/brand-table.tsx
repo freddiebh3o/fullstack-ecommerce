@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -49,14 +50,16 @@ export default function BrandTable({
     if (!confirm(`Delete "${b.name || "Untitled"}"? This cannot be undone.`)) return;
     setBusyId(b.id);
     try {
-      const res = await fetch(`/api/admin/brands/${b.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/admin/brands/${b.id}`, { method: "DELETE" });
 
       let msg = "Failed to delete brand.";
       try {
         const body = await res.json();
         if (body?.error?.message) msg = body.error.message;
       } catch {
-        try { msg = await res.text(); } catch {}
+        try {
+          msg = await res.text();
+        } catch {}
       }
 
       if (!res.ok) {
@@ -100,7 +103,6 @@ export default function BrandTable({
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {b.logoUrl ? (
-                          // Next/Image is fine too, but <img> keeps it simple and you allow the host
                           <img
                             src={b.logoUrl}
                             alt=""
@@ -117,7 +119,6 @@ export default function BrandTable({
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1.5">
-                        {/* Edit icon button */}
                         {mayWrite ? (
                           <Button
                             asChild
@@ -140,7 +141,6 @@ export default function BrandTable({
                           </Button>
                         )}
 
-                        {/* Delete icon button */}
                         <Button
                           variant="destructive"
                           size="icon"

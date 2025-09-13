@@ -1,13 +1,13 @@
 // src/app/api/admin/uploads/presign/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/nextauth";
 import { s3 } from "@/lib/storage/s3";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import crypto from "node:crypto";
 import { getCurrentTenantId } from "@/lib/tenant/resolve";
+import { requireApiSession } from "@/lib/auth/guards/api";
+import { error } from "@/lib/api/response";
 
 const bodySchema = z.object({
   filename: z.string().min(1),
@@ -18,14 +18,21 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const role = (session?.user as any)?.role;
+  const res = await requireApiSession();
+  if (!res.ok) return res.response;
+
+  const { session } = res;
+  const role = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
+
+  // Only ADMIN / SUPERADMIN at the system level may presign
   if (role !== "ADMIN" && role !== "SUPERADMIN") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const r = error(403, "FORBIDDEN", "Forbidden");
+    r.headers.set("x-deny-reason", "forbidden");
+    return r;
   }
 
   const tenantId = await getCurrentTenantId();
-  if (!tenantId) return NextResponse.json({ error: "No tenant" }, { status: 400 });
+  if (!tenantId) return error(400, "BAD_REQUEST", "No tenant selected");
 
   const raw = await req.json();
   const normalized = {
@@ -37,7 +44,7 @@ export async function POST(req: Request) {
   };
 
   const parsed = bodySchema.safeParse(normalized);
-  if (!parsed.success) return NextResponse.json(parsed.error.flatten(), { status: 400 });
+  if (!parsed.success) return error(400, "VALIDATION", "Invalid request body", parsed.error.flatten());
 
   const { filename, contentType, scope, entityId } = parsed.data;
 

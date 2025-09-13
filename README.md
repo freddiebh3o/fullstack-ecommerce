@@ -387,26 +387,42 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   |   \---page.tsx
 |   |   |   +---brands
 |   |   |   |   +---[id]
+|   |   |   |   |   \---edit
+|   |   |   |   |       \---page.tsx
 |   |   |   |   +---new
+|   |   |   |   |   \---page.tsx
 |   |   |   |   \---page.tsx
 |   |   |   +---categories
 |   |   |   |   +---[id]
+|   |   |   |   |   \---edit
+|   |   |   |   |       \---page.tsx
 |   |   |   |   +---new
+|   |   |   |   |   \---page.tsx
 |   |   |   |   \---page.tsx
 |   |   |   +---members
 |   |   |   |   +---new
+|   |   |   |   |   \---page.tsx
 |   |   |   |   \---page.tsx
 |   |   |   +---products
 |   |   |   |   +---[id]
+|   |   |   |   |   \---edit
+|   |   |   |   |       \---page.tsx
 |   |   |   |   +---new
+|   |   |   |   |   \---page.tsx
 |   |   |   |   \---page.tsx
 |   |   |   +---roles
 |   |   |   |   +---[id]
+|   |   |   |   |   \---edit
+|   |   |   |   |       \---page.tsx
 |   |   |   |   +---new
+|   |   |   |   |   \---page.tsx
 |   |   |   |   \---page.tsx
 |   |   |   +---users
 |   |   |   |   +---[id]
+|   |   |   |   |   \---edit
+|   |   |   |   |       \---page.tsx
 |   |   |   |   +---new
+|   |   |   |   |   \---page.tsx
 |   |   |   |   \---page.tsx
 |   |   |   +---layout.tsx
 |   |   |   +---loading.tsx
@@ -414,16 +430,40 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   +---api
 |   |   |   +---admin
 |   |   |   |   +---branding
+|   |   |   |   |   \---route.ts
 |   |   |   |   +---brands
+|   |   |   |   |   +---[id]
+|   |   |   |   |   |   \---route.ts
+|   |   |   |   |   \---route.ts
 |   |   |   |   +---categories
+|   |   |   |   |   +---[id]
+|   |   |   |   |   |   \---route.ts
+|   |   |   |   |   \---route.ts
 |   |   |   |   +---members
+|   |   |   |   |   +---[id]
+|   |   |   |   |   |   \---route.ts
+|   |   |   |   |   \---route.ts
 |   |   |   |   +---products
+|   |   |   |   |   +---[id]
+|   |   |   |   |   |   \---route.ts
+|   |   |   |   |   \---route.ts
 |   |   |   |   +---roles
+|   |   |   |   |   +---[id]
+|   |   |   |   |   |   \---route.ts
+|   |   |   |   |   \---route.ts
 |   |   |   |   +---tenant
+|   |   |   |   |   \---switch
+|   |   |   |   |       \---route.ts
 |   |   |   |   +---uploads
+|   |   |   |   |   \---presign
+|   |   |   |   |       \---route.ts
 |   |   |   |   \---users
+|   |   |   |       +---[id]
+|   |   |   |       |   \---route.ts
+|   |   |   |       \---route.ts
 |   |   |   \---auth
 |   |   |       \---[...nextauth]
+|   |   |           \---route.ts
 |   |   +---login
 |   |   |   \---page.tsx
 |   |   +---favicon.ico
@@ -432,6 +472,10 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   \---page.tsx
 |   +---components
 |   |   +---admin
+|   |   |   +---index
+|   |   |   |   +---admin-index-shell.tsx
+|   |   |   |   +---data-pager.tsx
+|   |   |   |   \---data-toolbar.tsx
 |   |   |   +---admin-sidebar.tsx
 |   |   |   +---admin-user-menu.tsx
 |   |   |   +---brand-search.tsx
@@ -454,14 +498,13 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   +---product-table.tsx
 |   |   |   +---role-form.tsx
 |   |   |   +---roles-table.tsx
+|   |   |   +---tenant-cookie-guard.tsx
 |   |   |   +---tenant-switcher.tsx
-|   |   |   +---TenantCookieGuard.tsx
 |   |   |   \---user-table.tsx
 |   |   +---auth
 |   |   |   \---sign-out-button.tsx
 |   |   +---theme
 |   |   |   +---admin-theme-provider.tsx
-|   |   |   +---scoped-admin-branding.tsx
 |   |   |   \---theme-toggle.tsx
 |   |   \---ui
 |   |       +---button.tsx
@@ -471,8 +514,11 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |       +---input.tsx
 |   |       +---label.tsx
 |   |       +---pagination.tsx
+|   |       +---popover.tsx
 |   |       +---select.tsx
 |   |       +---spinner.tsx
+|   |       +---switch.tsx
+|   |       +---table.tsx
 |   |       \---toast-provider.tsx
 |   +---lib
 |   |   +---api
@@ -494,11 +540,15 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   +---branding
 |   |   |   +---css-vars.ts
 |   |   |   +---defaults.ts
-|   |   |   \---get-branding.ts
+|   |   |   +---get-branding.ts
+|   |   |   \---utils.ts
 |   |   +---db
 |   |   |   +---index.ts
 |   |   |   +---prisma.ts
 |   |   |   \---tenant-db.ts
+|   |   +---paging
+|   |   |   +---index.ts
+|   |   |   \---query.ts
 |   |   +---storage
 |   |   |   +---index.ts
 |   |   |   \---s3.ts
@@ -508,6 +558,7 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   +---index.ts
 |   |   |   \---resolve.ts
 |   |   \---utils
+|   |       +---env.ts
 |   |       +---index.ts
 |   |       +---misc.ts
 |   |       \---slug.ts
@@ -530,7 +581,8 @@ The project follows a standard **Next.js App Router** layout with additional fol
 +---postcss.config.mjs
 +---print-tree.mjs
 +---README.md
-\---tsconfig.json
++---tsconfig.json
+\---tsconfig.tsbuildinfo
 ```
 --- 
 
@@ -925,9 +977,14 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [ ] On any logout, redirect to the login screen
 - [ ] Refactor the login screen to look much nicer. Split the page in two, loging form on the left, big image on the right
 
+
 ### Epic: Branches/Locations
 - [ ] Decice on the best appraoch for this. Should it just default to every tenant starts off with 1 location and they can just build out from there? Or is it feature enabled per tenant that allows that specific tenant to spilt their stock up between different branches? Pros and cons
 - [ ] Not only product stock is split across different locations, but everything will be, from what customers you have, what suppliers you have, your orders etc
+
+### Audit log
+- [ ] Easy way to see all server traffic/audit logs
+- [ ] Activity history to track who's changed what and when
 
 ### Epic: Find better alternative colour picker
 - [ ] Look into some pre built colour pickers
@@ -939,7 +996,10 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [ ] If user tries to leave the page when form is dirty, show confirmation modal with three options, continue without saving/cancel/Save and continue
 
 ### Epic: Introduce new branding theme and components into the form pages
+- [ ] First we need to rethink how we are handling the new/edit pages for each scenario and if it is relevant to create a global wrapper for this and if so, create a good plan of implementing this.
 - [ ] Create global form component wrapper for all forms on the admin panel to use
+  - [ ] this global component wrapper needs to account for scenarios where the page will have 'tabs'. For example, products pages will likely have, down the line, a lot of different features we don't currently have, for example, a tab to manage product document management to manage different instructions, a tab to manage product images and meta data, etc
+  - [ ] What about scenarios like categories, where we will eventually want to have subcategories (is it wise to add this first before working no this epic?). How should we be displaying these subcategories within the category page itself? 
 - [ ] Implement this new global form component across all pages that would use it
   - [ ] New/Edit product
   - [ ] New/Edit Category
@@ -949,6 +1009,7 @@ This section tracks which larger feature areas (Epics) have already been integra
   - [ ] New/Edit Roles
 - [ ] All forms use toast notifications instead of alerts.
 - [ ] Sticky save bar on long forms.
+
 
 ### Epic: Branches/Locations
 - [ ] Add `Branch` model linked to tenant.  
@@ -1164,7 +1225,7 @@ node scripts/fix-roles.js
 - Running `reset` will erase **all data** in your local database.  
 - Always re-run `prisma generate` if you update `schema.prisma`.  
 ```bash
-node print-tree.mjs . "node_modules,.git,.next,dist" 5
+node print-tree.mjs . "node_modules,.git,.next,dist" 10
 ```
 
 ---

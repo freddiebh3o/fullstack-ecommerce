@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const schema = z.object({
   email: z.string().email(),
@@ -30,7 +31,7 @@ export default function NewUserForm() {
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch("/api/admin/users", {
+    const res = await apiFetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),

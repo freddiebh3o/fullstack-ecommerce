@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import ImageUploader from "@/components/admin/image-uploader";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const schema = z.object({
   name: z.string().min(2),
@@ -28,13 +29,16 @@ export default function EditBrandForm({ id, initial }: { id: string; initial: Fo
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch(`/api/admin/brands/${id}`, {
+    const res = await apiFetch(`/api/admin/brands/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
     });
     setSaving(false);
-    if (!res.ok) { alert(await res.text()); return; }
+    if (!res.ok) {
+      alert(await res.text());
+      return;
+    }
     router.push("/admin/brands");
     router.refresh();
   }
@@ -81,7 +85,7 @@ export default function EditBrandForm({ id, initial }: { id: string; initial: Fo
                   label="Brand logo"
                   onUploaded={(url) => form.setValue("logoUrl", url, { shouldValidate: true })}
                   onClear={() => form.setValue("logoUrl", "", { shouldValidate: true })}
-                  className="max-w-md"   // optional width constraint
+                  className="max-w-md"
                   debug
                 />
               </div>

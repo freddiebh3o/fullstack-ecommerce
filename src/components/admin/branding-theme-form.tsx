@@ -39,13 +39,13 @@ import Image from "next/image";
 import type { BrandingTheme, ThemePalette } from "@/lib/branding/defaults";
 import { DEFAULT_THEME as DEFAULTS } from "@/lib/branding/defaults";
 import { CheckCircle2, AlertTriangle, XCircle, Info } from "lucide-react";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 /* =========================
    Helpers
    ========================= */
 function toCssVars(p: ThemePalette): React.CSSProperties {
   return {
-    // core colors
     ["--primary" as any]: p.colors.primary,
     ["--primary-hover" as any]: p.colors.primaryHover,
     ["--primary-foreground" as any]: p.colors.text,
@@ -66,35 +66,29 @@ function toCssVars(p: ThemePalette): React.CSSProperties {
 
     ["--ring" as any]: p.colors.ring ?? p.colors.primaryHover,
 
-    // header / section tokens
     ["--card-header-bg" as any]: p.colors.headerBg ?? p.colors.primary,
     ["--card-header-fg" as any]: p.colors.headerTitle ?? p.colors.text,
     ["--card-header-desc" as any]: p.colors.headerDesc ?? p.colors.textMuted,
 
-    // table header tokens
     ["--table-header-bg" as any]: p.colors.tableHeaderBg ?? p.colors.surface,
     ["--table-header-fg" as any]: p.colors.tableHeaderFg ?? p.colors.text,
 
-    // type
     ["--font-family" as any]: p.typography.fontFamily,
     ["--fs-base" as any]: p.typography.fontSize.base,
     ["--fs-sm" as any]: p.typography.fontSize.sm,
     ["--fs-lg" as any]: p.typography.fontSize.lg,
     ["--lh-normal" as any]: String(p.typography.lineHeight.normal),
 
-    // radii & shadows
     ["--radius-md" as any]: p.radii.md,
     ["--shadow-sm" as any]: p.shadows.sm,
     ["--shadow-md" as any]: p.shadows.md,
 
-    // === Sidebar tokens (used by AdminSidebar) ===
     ["--sidebar" as any]: p.colors.surface,
     ["--sidebar-foreground" as any]: p.colors.text,
     ["--sidebar-border" as any]: p.colors.border,
     ["--sidebar-primary" as any]: p.colors.primary,
     ["--sidebar-ring" as any]: p.colors.ring ?? p.colors.primaryHover,
 
-    // Header title token used by sidebar hover/active text
     ["--header-title" as any]: p.colors.headerTitle ?? p.colors.text,
   } as React.CSSProperties;
 }
@@ -117,11 +111,9 @@ const GROUPS: Array<{ title: string; keys: Array<keyof ThemePalette["colors"]> }
   { title: "Secondary", keys: ["secondary", "secondaryHover"] },
   { title: "Neutrals", keys: ["background", "surface", "text", "textMuted", "border"] },
   { title: "State colors", keys: ["success", "warning", "error"] },
-  // New groups
   { title: "Headers (Card / Section)", keys: ["headerBg", "headerTitle", "headerDesc"] },
   { title: "Table Header", keys: ["tableHeaderBg", "tableHeaderFg"] },
 ];
-
 
 function ColorField({
   label,
@@ -151,7 +143,6 @@ function ColorField({
           placeholder="#000000"
           aria-label={`${label} hex`}
         />
-        {/* <div className="h-6 w-6 rounded border" style={{ background: value }} aria-hidden /> */}
       </div>
     </div>
   );
@@ -197,7 +188,7 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
     setError(null);
     setOk(false);
     try {
-      const res = await fetch("/api/admin/branding", {
+      const res = await apiFetch("/api/admin/branding", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -224,7 +215,7 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
     setError(null);
     setOk(false);
     try {
-      const res = await fetch("/api/admin/branding", {
+      const res = await apiFetch("/api/admin/branding", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoUrl: url }),
@@ -248,7 +239,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
   }
 
   function resetToDefaults() {
-    // Resets to canonical defaults (not saved until Save is pressed)
     setTheme({
       light: DEFAULTS.light,
       dark: DEFAULTS.dark,
@@ -296,7 +286,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
             <CardDescription>Upload your admin logo and pick which palette you’re editing.</CardDescription>
             <CardAction>
               <div className="flex flex-col items-start gap-3">
-                {/* shadcn Select */}
                 <Select value={mode} onValueChange={(v: "light" | "dark") => setMode(v)}>
                   <SelectTrigger className="w-[160px]">
                     <SelectValue placeholder="Choose palette" />
@@ -383,7 +372,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
           <CardHeader className="border-b">
             <CardTitle>Preview</CardTitle>
             <CardAction>
-              {/* Dark-mode preview toggle (uses shadcn Switch you already wired) */}
               <div className="flex items-center gap-2">
                 <Label htmlFor="preview-dark" className="text-sm">
                   Dark mode
@@ -399,9 +387,7 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
           </CardHeader>
 
           <CardContent>
-            {/* Scoped CSS so hover/active work without affecting your app */}
             <style
-              // eslint-disable-next-line react/no-danger
               dangerouslySetInnerHTML={{
                 __html: `
                   .branding-preview {
@@ -454,7 +440,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                     outline-offset: 2px;
                   }
 
-                  /* header section preview */
                   .branding-preview .card-header {
                     background: var(--card-header-bg);
                     color: var(--card-header-fg);
@@ -463,7 +448,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                     color: var(--card-header-desc);
                   }
 
-                  /* table header preview */
                   .branding-preview table thead th {
                     background: var(--table-header-bg);
                     color: var(--table-header-fg);
@@ -477,7 +461,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
               style={toCssVars(previewPalette)}
             >
               <div className="grid gap-4">
-                {/* ===== Sidebar preview (matches AdminSidebar styles) ===== */}
                 <div
                   className="rounded-lg overflow-hidden"
                   style={{
@@ -501,7 +484,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                         borderColor: "var(--sidebar-border)",
                       }}
                     >
-                      {/* Logo area (same structure as AdminSidebar) */}
                       <div
                         className="p-3 border-b flex items-center justify-center"
                         style={{ borderColor: "var(--sidebar-border)" }}
@@ -520,12 +502,11 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                         )}
                       </div>
 
-                      {/* Sample links (hover/active/focus use the same tokens as AdminSidebar) */}
                       <nav className="p-3">
                         <ul className="space-y-1">
                           {[
                             { label: "Dashboard", active: false },
-                            { label: "Products", active: true }, // active example
+                            { label: "Products", active: true },
                             { label: "Categories", active: false },
                             { label: "Brands", active: false },
                           ].map((item) => (
@@ -533,13 +514,10 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                               <div
                                 className={[
                                   "group flex items-center rounded-md px-3 py-2 text-sm outline-none transition-colors",
-                                  "cursor-default select-none", // not clickable in preview
+                                  "cursor-default select-none",
                                   "text-[color-mix(in_oklab,var(--sidebar-foreground),transparent_20%)]",
-                                  // Hover (uses primary-hover + header-title)
                                   "hover:bg-[var(--primary-hover)] hover:text-[var(--header-title)]",
-                                  // Focus ring (sidebar ring token) — show on keyboard nav demo
                                   "focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_oklab,var(--sidebar-ring),transparent_50%)] focus-visible:border-[var(--sidebar-ring)]",
-                                  // Active (current page) uses sidebar-primary + header-title
                                   item.active ? "bg-[var(--sidebar-primary)] text-[var(--header-title)] font-medium" : "",
                                 ].join(" ")}
                                 tabIndex={0}
@@ -555,7 +533,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                   </div>
                 </div>
 
-                {/* Card: header + content */}
                 <div
                   className="rounded-lg overflow-hidden"
                   style={{
@@ -565,10 +542,8 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                     boxShadow: "var(--shadow-sm)",
                   }}
                 >
-                  {/* header using header tokens */}
                   <div className="card-header px-4 py-2">
                     <div className="text-sm font-medium flex items-center gap-2">
-                      {/* Optional header icon; remove if you don't want it */}
                       <Info className="h-4 w-4" aria-hidden />
                       Product details
                     </div>
@@ -576,7 +551,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                   </div>
 
                   <div className="p-4 space-y-3">
-                    {/* Intro text + link */}
                     <div className="text-sm text-muted-foreground">
                       This simulates a typical card.
                     </div>
@@ -588,7 +562,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                       .
                     </p>
 
-                    {/* Buttons (kept) */}
                     <div className="flex flex-wrap gap-2">
                       <button className="btn btn-primary">Primary</button>
                       <button className="btn btn-secondary">Secondary</button>
@@ -596,7 +569,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                       <button className="btn btn-destructive">Delete</button>
                     </div>
 
-                    {/* State alerts with icons */}
                     <div className="alert alert-success text-sm">
                       <CheckCircle2 className="icon h-4 w-4" aria-hidden />
                       <span>Success — operation completed.</span>
@@ -610,14 +582,12 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
                       <span>Error — something went wrong.</span>
                     </div>
 
-                    {/* Input focus demo */}
                     <div className="field">
                       <Input placeholder="Focus me to see ring (uses primaryHover)" />
                     </div>
                   </div>
                 </div>
 
-                {/* Table preview to showcase table header tokens */}
                 <div
                   className="rounded-lg overflow-hidden"
                   style={{
@@ -678,7 +648,6 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
           </CardContent>
         </Card>
       </div>
-
     </div>
   );
 }

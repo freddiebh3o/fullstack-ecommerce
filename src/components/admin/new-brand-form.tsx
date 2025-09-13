@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import ImageUploader from "@/components/admin/image-uploader";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -41,7 +42,7 @@ export default function NewBrandForm() {
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch("/api/admin/brands", {
+    const res = await apiFetch("/api/admin/brands", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),

@@ -4,23 +4,26 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     ...init,
     headers: { "content-type": "application/json", ...(init?.headers || {}) },
   });
+
   let body: any = null;
-  try {
-    body = await res.json();
-  } catch {}
+  try { body = await res.json(); } catch {}
 
   if (!res.ok) {
     const code = res.headers.get("x-deny-reason") || body?.error?.code;
     const msg = body?.error?.message || "Something went wrong.";
 
-    // Example UX decisions:
     if (res.status === 401) {
-      // redirect to sign-in
-      if (typeof window !== "undefined") window.location.href = "/login";
+      if (typeof window !== "undefined") {
+        const here = window.location.pathname + window.location.search + window.location.hash;
+        const u = new URL("/login", window.location.origin);
+        u.searchParams.set("reason", "expired");
+        u.searchParams.set("callbackUrl", here);
+        window.location.href = u.toString();
+      }
     } else if (res.status === 403) {
-      // show toast
-      if (typeof window !== "undefined") alert(msg); // swap for your toast system
+      if (typeof window !== "undefined") alert(msg);
     }
+
     throw Object.assign(new Error(msg), {
       status: res.status,
       code,
@@ -28,6 +31,5 @@ export async function apiFetch(input: RequestInfo, init?: RequestInit) {
     });
   }
 
-  return body?.data ?? body; // supports ok()/plain responses
+  return body?.data ?? body;
 }
-  

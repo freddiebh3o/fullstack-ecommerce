@@ -1,22 +1,31 @@
 // src/app/api/admin/tenant/switch/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/nextauth";
-import { db } from "@/lib/db/prisma";
 import { z } from "zod";
+import { db } from "@/lib/db/prisma";
+import { requireApiSession } from "@/lib/auth/guards/api";
+import { error } from "@/lib/api/response";
 
 const bodySchema = z.object({ tenantId: z.string().min(1) });
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
+  const res = await requireApiSession();
+  if (!res.ok) return res.response;
+
+  const { session } = res;
+  const userId = session.user?.id as string | undefined;
   const sysRole = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
 
   if (!userId || !sysRole) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const r = error(401, "UNAUTHENTICATED", "You must be signed in");
+    r.headers.set("x-deny-reason", "unauthorized");
+    return r;
   }
 
-  const { tenantId } = bodySchema.parse(await req.json());
+  const parsed = bodySchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return error(400, "VALIDATION", "Invalid request body", parsed.error.flatten());
+  }
+  const { tenantId } = parsed.data;
 
   // Make sure the target tenant actually exists
   const tenant = await db.tenant.findUnique({
@@ -24,7 +33,7 @@ export async function POST(req: Request) {
     select: { id: true },
   });
   if (!tenant) {
-    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    return error(404, "NOT_FOUND", "Tenant not found");
   }
 
   // SUPERADMIN: can switch to any tenant without membership
@@ -35,19 +44,21 @@ export async function POST(req: Request) {
       select: { id: true },
     });
     if (!member) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      const r = error(403, "FORBIDDEN", "Forbidden");
+      r.headers.set("x-deny-reason", "forbidden");
+      return r;
     }
   }
 
-  const res = NextResponse.json({ ok: true });
+  const json = NextResponse.json({ ok: true });
 
   // Cookie is our source of truth for tenant resolution on the server
-  res.cookies.set("x-current-tenant-id", tenantId, {
+  json.cookies.set("x-current-tenant-id", tenantId, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
   });
 
-  return res;
+  return json;
 }

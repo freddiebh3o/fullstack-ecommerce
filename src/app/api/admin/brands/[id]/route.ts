@@ -7,8 +7,10 @@ import { audit } from "@/lib/audit/audit";
 
 const bodySchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  slug: z.string().min(2, "Slug must be at least 2 characters")
-         .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
+  slug: z
+    .string()
+    .min(2, "Slug must be at least 2 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
   description: z.string().optional(),
   websiteUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   logoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
@@ -35,7 +37,10 @@ export const PATCH = withTenantPermission(
   async (req, { db, tenantId, params, session }) => {
     const { id } = params as { id: string };
 
-    const exists = await db.brand.findFirst({ where: { id, tenantId }, select: { id: true } });
+    const exists = await db.brand.findFirst({
+      where: { id, tenantId },
+      select: { id: true },
+    });
     if (!exists) return error(404, "NOT_FOUND", "Brand not found");
 
     const parsed = bodySchema.safeParse(await req.json());
@@ -64,7 +69,10 @@ export const PATCH = withTenantPermission(
       },
     });
 
-    await audit(db, tenantId, session.user.id, "brand.update", { id: updated.id, name: updated.name });
+    await audit(db, tenantId, session.user.id, "brand.update", {
+      id: updated.id,
+      name: updated.name,
+    });
 
     return ok(updated);
   }
@@ -76,7 +84,10 @@ export const DELETE = withTenantPermission(
   async (_req, { db, tenantId, params, session }) => {
     const { id } = params as { id: string };
 
-    const exists = await db.brand.findFirst({ where: { id, tenantId }, select: { id: true } });
+    const exists = await db.brand.findFirst({
+      where: { id, tenantId },
+      select: { id: true },
+    });
     if (!exists) return error(404, "NOT_FOUND", "Brand not found");
 
     const inUse = await db.product.count({ where: { tenantId, brandId: id } });

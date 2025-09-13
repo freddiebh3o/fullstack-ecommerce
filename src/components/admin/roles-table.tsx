@@ -15,6 +15,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Copy, Pencil, Trash2 } from "lucide-react";
+import { apiFetch } from "@/lib/api/client";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -50,23 +51,15 @@ export default function RolesTable({
     if (!confirm(`Delete role "${name}"? This cannot be undone.`)) return;
     setBusyId(id);
     try {
-      const res = await fetch(`/api/admin/roles/${id}`, { method: "DELETE" });
-
-      let msg = "Failed to delete role.";
-      try {
-        const body = await res.json();
-        if (body?.error?.message) msg = body.error.message;
-      } catch {
-        try { msg = await res.text(); } catch {}
-      }
-
-      if (!res.ok) {
-        toast({ title: "Delete failed", message: msg, variant: "destructive" });
-        return;
-      }
-
+      await apiFetch(`/api/admin/roles/${id}`, { method: "DELETE" });
       toast({ message: "Role deleted" });
       startTransition(() => router.refresh());
+    } catch (e: any) {
+      toast({
+        title: "Delete failed",
+        message: e?.message ?? "Failed to delete role.",
+        variant: "destructive",
+      });
     } finally {
       setBusyId(null);
     }
@@ -127,7 +120,6 @@ export default function RolesTable({
                     </TableCell>
 
                     <TableCell>{r.members}</TableCell>
-
 
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1.5">

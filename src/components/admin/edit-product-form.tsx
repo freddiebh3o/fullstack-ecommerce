@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import CategorySelect from "./category-select";
 import ImageUploader from "@/components/admin/image-uploader";
-import BrandSelect from "@/components/admin/brand-select"; // ⬅️ add
+import BrandSelect from "@/components/admin/brand-select";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -21,7 +22,7 @@ const schema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().url().optional().or(z.literal("")),
   categorySlug: z.string().optional().or(z.literal("")),
-  brandSlug: z.string().optional().or(z.literal("")), // ⬅️ add
+  brandSlug: z.string().optional().or(z.literal("")),
 });
 type FormValues = z.input<typeof schema>;
 
@@ -33,8 +34,8 @@ export default function EditProductForm({
 }: {
   id: string;
   initial: FormValues;
-  categories: { name: string; slug: string }[];  // ⬅️ slim option type
-  brands: { name: string; slug: string }[];      // ⬅️ new prop
+  categories: { name: string; slug: string }[];
+  brands: { name: string; slug: string }[];
 }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -47,10 +48,10 @@ export default function EditProductForm({
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch(`/api/admin/products/${id}`, {
+    const res = await apiFetch(`/api/admin/products/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values), // includes brandSlug & categorySlug
+      body: JSON.stringify(values),
     });
     setSaving(false);
 
@@ -147,7 +148,6 @@ export default function EditProductForm({
             <FormItem>
               <FormControl>
                 <div className="flex flex-col gap-2">
-                  {/* <Input className="bg-background" placeholder="https://..." {...field} value={field.value ?? ""} /> */}
                   <ImageUploader
                     scope="products"
                     currentUrl={form.getValues("imageUrl") || undefined}

@@ -1,13 +1,16 @@
 // src/lib/auth/guards/api.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/nextauth";
-import { tenantDb } from "@/lib/db/tenant-db";
-import { can } from "@/lib/auth/permissions";
 import type { Session } from "next-auth";
 import type { PrismaClient } from "@prisma/client";
 
+import { authOptions } from "@/lib/auth/nextauth";
+import { tenantDb } from "@/lib/db/tenant-db";
+import { can } from "@/lib/auth/permissions";
+import { error } from "@/lib/api/response";
+
 type CtxBase = { params?: unknown };
+
 export type GuardedCtx = CtxBase & {
   session: Session;
   db: PrismaClient;
@@ -16,31 +19,76 @@ export type GuardedCtx = CtxBase & {
 
 type Handler = (req: Request, ctx: GuardedCtx) => Promise<Response> | Response;
 
-function json(status: number, body: any) {
-  return NextResponse.json(body, { status });
+/* -------------------------
+   Small helpers
+-------------------------- */
+
+function withHeader(res: NextResponse, key: string, value: string) {
+  res.headers.set(key, value);
+  return res;
+}
+
+function unauthorized() {
+  // Standardize JSON + header for client redirect logic
+  return withHeader(
+    error(401, "UNAUTHENTICATED", "You must be signed in"),
+    "x-deny-reason",
+    "unauthorized"
+  );
+}
+
+function forbiddenResponse(message = "Insufficient permissions") {
+  return withHeader(
+    error(403, "FORBIDDEN", message),
+    "x-deny-reason",
+    "forbidden"
+  );
 }
 
 async function normalizeParams(maybe: unknown) {
-  // If it quacks like a Promise, await it.
+  // If it quacks like a Promise, await it (Next 15 can pass params as a Promise)
   if (maybe && typeof (maybe as any).then === "function") {
     return await (maybe as Promise<any>);
   }
   return maybe;
 }
 
+/* -------------------------
+   Core guards
+-------------------------- */
+
+/**
+ * Require a session + tenant context, no specific permission.
+ * Useful for endpoints that are tenant-scoped but open to any
+ * authenticated user in that tenant.
+ */
+export function withTenant(handler: Handler) {
+  return async (req: Request, ctx?: CtxBase) => {
+    const session = await getServerSession(authOptions);
+    if (!session) return unauthorized();
+
+    const { db, tenantId } = await tenantDb();
+    const params = await normalizeParams(ctx?.params);
+
+    try {
+      return await handler(req, { ...(ctx ?? {}), params, session, db, tenantId });
+    } catch (err) {
+      console.error(`[route error]`, err);
+      return error(500, "SERVER_ERROR", "Internal Server Error");
+    }
+  };
+}
+
 /** Require a single tenant permission before running the handler */
 export function withTenantPermission(permissionKey: string, handler: Handler) {
   return async (req: Request, ctx?: CtxBase) => {
     const session = await getServerSession(authOptions);
-    if (!session) return json(401, { error: "Unauthorized" });
+    if (!session) return unauthorized();
 
     const { db, tenantId } = await tenantDb();
-    console.log("tenantId1234", tenantId);
-    console.log("permissionKey1234", permissionKey);
 
     const allowed = await can(permissionKey, tenantId);
-    console.log("allowed1234", allowed);
-    if (!allowed) return json(403, { error: "Forbidden" });
+    if (!allowed) return forbiddenResponse();
 
     const params = await normalizeParams(ctx?.params);
 
@@ -48,27 +96,51 @@ export function withTenantPermission(permissionKey: string, handler: Handler) {
       return await handler(req, { ...(ctx ?? {}), params, session, db, tenantId });
     } catch (err) {
       console.error(`[route error] ${permissionKey}`, err);
-      return json(500, { error: "Internal Server Error" });
+      return error(500, "SERVER_ERROR", "Internal Server Error");
     }
   };
 }
 
-/** Allow any of the provided permissions */
+/** Allow any of the provided permissions (OR semantics) */
 export function withAnyTenantPermission(permissionKeys: string[], handler: Handler) {
   return async (req: Request, ctx?: CtxBase) => {
     const session = await getServerSession(authOptions);
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session) return unauthorized();
 
     const { db, tenantId } = await tenantDb();
 
     let allowed = false;
     for (const key of permissionKeys) {
+      // short-circuit on first allowed
       if (await can(key, tenantId)) { allowed = true; break; }
     }
-    if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    if (!allowed) return forbiddenResponse();
 
     const params = await normalizeParams(ctx?.params);
 
-    return handler(req, { ...(ctx ?? {}), params, session, db, tenantId });
+    try {
+      return await handler(req, { ...(ctx ?? {}), params, session, db, tenantId });
+    } catch (err) {
+      console.error(`[route error any(${permissionKeys.join(",")})]`, err);
+      return error(500, "SERVER_ERROR", "Internal Server Error");
+    }
   };
+}
+
+/**
+ * Lower-level utility in case you need fine-grained control.
+ * Returns either a populated context or a 401 response.
+ */
+type RequireApiSessionResult =
+  | { ok: true; session: Session; db: PrismaClient; tenantId: string; response: null }
+  | { ok: false; response: NextResponse };
+
+export async function requireApiSession(): Promise<RequireApiSessionResult> {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return { ok: false, response: unauthorized() };
+  }
+
+  const { db, tenantId } = await tenantDb();
+  return { ok: true, session, db, tenantId, response: null };
 }

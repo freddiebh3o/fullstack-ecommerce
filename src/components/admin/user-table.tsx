@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
+import { apiFetch } from "@/lib/api/client";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -47,23 +48,15 @@ export default function UserTable({
     if (!confirm(`Delete ${u.email}? This cannot be undone.`)) return;
     setBusyId(u.id);
     try {
-      const res = await fetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
-
-      let msg = "Failed to delete user.";
-      try {
-        const body = await res.json();
-        if (body?.error?.message) msg = body.error.message;
-      } catch {
-        try { msg = await res.text(); } catch {}
-      }
-
-      if (!res.ok) {
-        toast({ title: "Delete failed", message: msg, variant: "destructive" });
-        return;
-      }
-
+      await apiFetch(`/api/admin/users/${u.id}`, { method: "DELETE" });
       startTransition(() => router.refresh());
       toast({ message: "User deleted" });
+    } catch (e: any) {
+      toast({
+        title: "Delete failed",
+        message: e?.message ?? "Failed to delete user.",
+        variant: "destructive",
+      });
     } finally {
       setBusyId(null);
     }

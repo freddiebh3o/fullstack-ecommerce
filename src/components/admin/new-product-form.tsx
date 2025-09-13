@@ -12,6 +12,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import CategorySelect from "@/components/admin/category-select";
 import ImageUploader from "@/components/admin/image-uploader";
 import BrandSelect from "@/components/admin/brand-select";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const schema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -29,20 +30,13 @@ function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/\s+/g, "-");
 }
 
-
-export default function NewProductForm({ 
-    categories, 
-    brands 
-  }: { 
-    categories: { 
-      name: string; 
-      slug: string 
-    }[], 
-    brands: { 
-      name: string; 
-      slug: string 
-    }[] 
-  }) {
+export default function NewProductForm({
+  categories,
+  brands
+}: {
+  categories: { name: string; slug: string }[],
+  brands: { name: string; slug: string }[]
+}) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
 
@@ -60,7 +54,7 @@ export default function NewProductForm({
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch("/api/admin/products", {
+    const res = await apiFetch("/api/admin/products", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
@@ -77,7 +71,6 @@ export default function NewProductForm({
     router.push(location || "/admin/products");
     router.refresh();
   }
-  
 
   return (
     <Form {...form}>
@@ -174,12 +167,12 @@ export default function NewProductForm({
                       <div className="flex flex-col gap-2">
                         <ImageUploader
                           scope="products"
-                          entityId={`drafts/${draftIdRef.current}`} // uploads under products/drafts/<uuid>
+                          entityId={`drafts/${draftIdRef.current}`}
                           label="Primary Image"
                           currentUrl={form.getValues("imageUrl") || undefined}
                           onUploaded={(url) => form.setValue("imageUrl", url, { shouldValidate: true })}
                           onClear={() => form.setValue("imageUrl", "", { shouldValidate: true })}
-                          className="max-w-md" 
+                          className="max-w-md"
                           debug
                         />
                       </div>

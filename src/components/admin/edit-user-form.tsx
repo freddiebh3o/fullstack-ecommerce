@@ -10,12 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const schema = z.object({
   email: z.string().email(),
   name: z.string().optional(),
   role: z.enum(["ADMIN", "USER", "SUPERADMIN"]),
-  password: z.string().min(8).optional(), // set to reset
+  password: z.string().min(8).optional(),
 });
 type FormValues = z.input<typeof schema>;
 
@@ -44,7 +45,7 @@ export default function EditUserForm({
 
   async function onSubmit(values: FormValues) {
     setSaving(true);
-    const res = await fetch(`/api/admin/users/${id}`, {
+    const res = await apiFetch(`/api/admin/users/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -100,7 +101,7 @@ export default function EditUserForm({
                 <Select
                   value={field.value}
                   onValueChange={field.onChange}
-                  disabled={isSelf} // 👈 prevent changing your own role
+                  disabled={isSelf}
                 >
                   <SelectTrigger><SelectValue placeholder="Choose role" /></SelectTrigger>
                   <SelectContent>

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { apiFetch } from "@/lib/api/client";
 
 const keyRegex = /^[a-z0-9._-]+$/;
 
@@ -114,28 +115,18 @@ export default function RoleForm({ mode, allPermissions, initial, defaults }: Pr
   async function onSubmit(values: FormValues) {
     setSaving(true);
     try {
-      const res =
-        mode === "create"
-          ? await fetch("/api/admin/roles", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(values),
-            })
-          : await fetch(`/api/admin/roles/${initial!.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(values),
-            });
-
-      let msg = "Failed to save role.";
-      try {
-        const body = await res.json();
-        if (!res.ok) {
-          msg = body?.error?.message ?? msg;
-          throw new Error(msg);
-        }
-      } catch (e: any) {
-        if (!res.ok) throw e;
+      if (mode === "create") {
+        await apiFetch("/api/admin/roles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
+      } else {
+        await apiFetch(`/api/admin/roles/${initial!.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(values),
+        });
       }
 
       toast({ message: "Saved" });
@@ -158,13 +149,7 @@ export default function RoleForm({ mode, allPermissions, initial, defaults }: Pr
     if (!confirm("Delete this role? This cannot be undone.")) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/admin/roles/${initial.id}`, {
-        method: "DELETE",
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(body?.error?.message ?? "Delete failed");
-      }
+      await apiFetch(`/api/admin/roles/${initial.id}`, { method: "DELETE" });
       toast({ message: "Deleted" });
       router.push("/admin/roles");
       router.refresh();
@@ -260,7 +245,7 @@ export default function RoleForm({ mode, allPermissions, initial, defaults }: Pr
           )}
         />
 
-        {/* Permissions checklist (as a controlled field) */}
+        {/* Permissions checklist */}
         <FormField
           control={form.control}
           name="permissionKeys"
@@ -282,8 +267,7 @@ export default function RoleForm({ mode, allPermissions, initial, defaults }: Pr
                             checked={checked}
                             onChange={(e) => {
                               const curr = new Set(
-                                (form.getValues("permissionKeys") as string[]) ??
-                                  []
+                                (form.getValues("permissionKeys") as string[]) ?? []
                               );
                               if (e.target.checked) curr.add(p.key);
                               else curr.delete(p.key);

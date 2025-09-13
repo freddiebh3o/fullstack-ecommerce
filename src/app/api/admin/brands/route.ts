@@ -8,8 +8,10 @@ import { audit } from "@/lib/audit/audit";
 
 const bodySchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  slug: z.string().min(2, "Slug must be at least 2 characters")
-         .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
+  slug: z
+    .string()
+    .min(2, "Slug must be at least 2 characters")
+    .regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
   description: z.string().optional(),
   websiteUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
   logoUrl: z.string().url("Must be a valid URL").optional().or(z.literal("")),
@@ -19,7 +21,9 @@ const querySchema = z.object({
   q: z.string().trim().optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
-  sort: z.enum(["createdAt:desc", "createdAt:asc", "name:asc", "name:desc"]).default("createdAt:desc"),
+  sort: z
+    .enum(["createdAt:desc", "createdAt:asc", "name:asc", "name:desc"])
+    .default("createdAt:desc"),
 });
 
 // GET /api/admin/brands  (brand.read OR brand.write)
@@ -98,7 +102,10 @@ export const POST = withTenantPermission(
       },
     });
 
-    await audit(db, tenantId, session.user.id, "brand.create", { id: brand.id, name: brand.name });
+    await audit(db, tenantId, session.user.id, "brand.create", {
+      id: brand.id,
+      name: brand.name,
+    });
 
     return ok(brand, {
       status: 201,

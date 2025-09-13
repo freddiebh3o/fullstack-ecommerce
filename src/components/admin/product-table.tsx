@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { Pencil, Trash2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast-provider";
+import { apiFetch } from "@/lib/http/apiFetch";
 
 const DATE_FMT = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -59,7 +60,7 @@ export default function ProductTable({
     if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
     setBusyId(id);
     try {
-      const res = await fetch(`/api/admin/products/${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/admin/products/${id}`, { method: "DELETE" });
 
       let msg = "Failed to delete product.";
       try {

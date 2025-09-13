@@ -5,10 +5,15 @@ import type { JWT } from "next-auth/jwt";
 import type { Session, User } from "next-auth";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db/prisma";
+import { ENV } from "@/lib/utils/env";
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
+  session: { 
+    strategy: "jwt", 
+    updateAge: ENV.AUTH_SESSION_UPDATE_AGE_SECONDS,
+    maxAge: ENV.AUTH_SESSION_MAX_AGE_SECONDS,
+  },
   providers: [
     Credentials({
       name: "Credentials",
@@ -55,6 +60,9 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: { signIn: "/login" },
+  jwt: {
+    maxAge: ENV.AUTH_SESSION_MAX_AGE_SECONDS,
+  },
 };
 
 export default NextAuth(authOptions);

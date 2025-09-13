@@ -1,41 +1,75 @@
 // src/middleware.ts
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-/**
- * Middleware strategy:
- * - Gate /admin to *authenticated* users (any system role).
- * - Do NOT enforce RBAC here (Edge middleware can't hit the DB reliably).
- * - RBAC & tenant scoping are enforced in server components and API routes via `can()` + tenant checks.
- */
-export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+const PUBLIC_PATHS = new Set<string>([
+  "/login",
+  "/api/auth", // NextAuth routes
+]);
 
-  // Only guard the admin app (leave public & auth endpoints alone)
-  if (!pathname.startsWith("/admin")) {
-    return NextResponse.next();
+function isPublicPath(pathname: string) {
+  if (pathname === "/") return false; // treat home as protected if your app requires auth
+  if (PUBLIC_PATHS.has(pathname)) return true;
+  // Skip static assets and Next internals
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/static/") ||
+    pathname.startsWith("/public/") ||
+    pathname.startsWith("/favicon") ||
+    pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|txt|map)$/)
+  ) {
+    return true;
   }
+  return false;
+}
 
-  // Read the NextAuth JWT at the edge
-  const token = await getToken({
-    req,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
+export async function middleware(req: NextRequest) {
+  const { pathname, search } = req.nextUrl;
+  const isAdminScope = pathname.startsWith("/admin");
+  const isPublic = isPublicPath(pathname);
 
-  // Not authenticated → send to login
+  // Only guard protected scopes (e.g., /admin)
+  if (!isAdminScope) return NextResponse.next();
+
+  // Avoid loops (login, next internals, assets)
+  if (isPublic) return NextResponse.next();
+
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+
+  // Build a clean callbackUrl preserving the original path+query
+  const callbackUrl = pathname + (search || "");
+
+  // Detect presence of a NextAuth session cookie (name differs between HTTP/HTTPS)
+  const hasSessionCookie =
+    req.cookies.has("__Secure-next-auth.session-token") ||
+    req.cookies.has("next-auth.session-token");
+
+  // Helper cookie we set on successful login from the login page
+  const hadAuthCookie = req.cookies.get("x-had-auth")?.value === "1";
+
+  // No (valid) token
   if (!token) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("from", pathname);
+    const url = new URL("/login", req.url);
+    url.searchParams.set("callbackUrl", callbackUrl);
+    // If we ever had auth or still have a NextAuth session cookie, treat as expired
+    url.searchParams.set("reason", hasSessionCookie || hadAuthCookie ? "expired" : "unauthenticated");
     return NextResponse.redirect(url);
   }
 
-  // Authenticated → allow. (RBAC/tenant checks happen server-side & in API routes)
+  // Token present: check exp to detect explicit timeout
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = (token as any).exp as number | undefined; // NextAuth sets exp in seconds
+  if (typeof exp === "number" && exp <= nowSec) {
+    const url = new URL("/login", req.url);
+    url.searchParams.set("callbackUrl", callbackUrl);
+    url.searchParams.set("reason", "expired");
+    return NextResponse.redirect(url);
+  }
+
   return NextResponse.next();
 }
 
-// Match the admin app only
+// Limit middleware to admin area (and optionally API under admin if desired)
 export const config = {
   matcher: ["/admin/:path*"],
 };

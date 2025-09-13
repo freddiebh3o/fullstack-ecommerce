@@ -3,8 +3,14 @@
 
 import { signOut } from "next-auth/react";
 import { Button } from "@/components/ui/button";
+import { useCallback } from "react";
 
 export default function AdminUserMenu({ email }: { email?: string }) {
+  const doSignOut = useCallback(() => {
+    // Always land on /login after sign-out
+    signOut({ callbackUrl: "/login" });
+  }, []);
+
   return (
     <div className="flex items-center gap-3">
       {email ? (
@@ -13,7 +19,7 @@ export default function AdminUserMenu({ email }: { email?: string }) {
       <Button
         size="sm"
         variant="outline"
-        onClick={() => signOut({ callbackUrl: "/" })}
+        onClick={doSignOut}
         className="rounded-md"
       >
         Sign out
