@@ -1,328 +1,221 @@
-# Fullstack E-commerce (Next.js + Prisma)
+# Fullstack E‑commerce (Next.js + Prisma)
 
-This project is a **learning-focused fullstack e-commerce application** built with **Next.js 15 (App Router)**, **Prisma ORM**, and **Postgres**.  
-It features an **admin panel** with authentication, product/catalog management, and **multi-tenant RBAC (role-based access control)**.  
-
-Uploads are stored in an **S3-compatible bucket** (emulated locally with LocalStack), so you can practice real-world cloud workflows without any AWS billing.  
-
-⚠️ **Note:** This project is strictly for practice and learning. It is **not intended for production**.  
+> **Updated 2025-09-13.** A learning-focused, multi-tenant e‑commerce admin built with **Next.js** and **Prisma/Postgres**, featuring RBAC, per‑tenant branding, LocalStack S3 uploads, and consistent API patterns. **Not for production.**
 
 ---
 
-## ✨ Feature Summary
+## Overview
 
-- **Authentication & Access**
-  - NextAuth.js (credentials provider with JWT sessions)
-  - Global system roles: `SUPERADMIN`, `ADMIN`, `USER`
-  - Tenant-level roles: `OWNER`, `ADMIN`, `EDITOR`, `READONLY`
-
-- **Admin Dashboard**
-  - Tenant-aware stats (products, categories, users)
-  - Quick links that only appear if you have the required permissions
-
-- **Product Management**
-  - List, create, edit, and delete products
-  - Associate products with categories and brands
-  - Upload a primary image (stored in S3/LocalStack)
-  - Tenant-scoped uniqueness on product slugs
-
-- **Category Management**
-  - List, create, edit, and delete categories
-  - Slug auto-generation and uniqueness enforcement per tenant
-  - Safeguard: cannot delete category if it still has products
-
-- **Brand Management**
-  - List, create, edit, and delete brands
-  - Upload brand logos
-  - Search + pagination support for larger brand catalogs
-
-- **Member Management** *(tenant-scoped)*
-  - Owners/Admins can invite new members to a tenant
-  - Assign roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`)
-  - Safeguard: last remaining OWNER cannot be deleted or demoted
-  - Editors/Readonly limited appropriately by permissions
-
-- **User Management** *(system-level, Admin/Superadmin only)*
-  - Internal users only (developers/staff)
-  - List, edit, reset password, or delete global users
-  - Safeguards: cannot delete yourself, cannot demote last ADMIN
-
-- **File Uploads**
-  - Integrated with LocalStack S3 for safe local development
-  - Bucket + object layout simulates real AWS S3 usage
-
-- **UI/UX**
-  - Built with Tailwind CSS and shadcn/ui
-  - Sidebar navigation with tenant switcher
-  - Toast notifications, loading states, and permission-aware UI
-  - Consistent error handling (`{ error, code, details }` JSON shape)
-
-- **Database**
-  - Prisma ORM with Postgres
-  - Multi-tenant scoping via `tenantId` on all core entities
-  - Seeding script provides tenants, demo users, roles, products, categories, and brands
+This repository mirrors a real SaaS back‑office:
+- **Next.js 15 (App Router, TypeScript)** for UI + API routes
+- **Prisma  / @prisma/client ** over **Postgres**
+- **NextAuth ** with credentials + JWT sessions
+- **Tailwind + shadcn/ui** for fast UI
+- **LocalStack (S3)** for local file storage that feels like AWS
+- **RBAC** with both default roles and **custom roles**
+- **Per‑tenant admin branding** (logo + theme tokens)
+- **Audit logging** for sensitive writes
 
 ---
 
-## 🏗 Architecture & Tech Stack
+## Feature Summary
 
-This project is designed to mirror a **real-world SaaS-style e-commerce platform** with tenant isolation, RBAC, and cloud-like storage.  
+### Authentication & Access
+- Credentials auth (NextAuth) with encrypted JWT sessions.
+- Global roles: `SUPERADMIN`, `ADMIN`, `USER`.
+- Tenant roles: `OWNER`, `ADMIN`, `EDITOR`, `READONLY` **+ Custom Roles** (if enabled).
 
-### Core Framework
-- **Next.js 15** (App Router + TypeScript) for frontend, API routes, and server components.
-- **React 18** with client/server components and Suspense support.
+### Multitenancy
+- Tenant resolved from cookie `x-current-tenant-id` (fallback to first membership).
+- All catalog entities include `tenantId`.
+- Per‑tenant uniqueness for slugs: `@@unique([tenantId, slug])`.
 
-### Database
-- **Postgres** (local development via Docker or Supabase in the cloud).
-- **Prisma ORM** for schema migrations, queries, and type-safety.
-- All core entities (`Product`, `Category`, `Brand`, `Image`) are **scoped by `tenantId`**.
+### Admin Modules
+- **Dashboard**: permission-aware quick links + counts.
+- **Products**: CRUD, brand/category relations, image upload to S3, per‑tenant slugs.
+- **Categories**: CRUD, safeguards when in use.
+- **Brands**: CRUD, logo upload, search + pagination.
+- **Members**: invite/remove, assign roles, last‑OWNER safeguards.
+- **Users (system)**: Admin/Superadmin‑only, cannot delete self / last ADMIN.
+- **Roles**: Create/update/delete roles **and custom roles** with checkbox permissions.
+- **Admin Branding**: per‑tenant logo + theme variables via CSS custom props.
 
-### Authentication
-- **NextAuth.js v4** with credentials provider.
-- Global system roles: `SUPERADMIN`, `ADMIN`, `USER`.
-- Tenant-level roles: `OWNER`, `ADMIN`, `EDITOR`, `READONLY`.
+### API Hardening
+- Zod validation on all inputs.
+- Guard helpers: `withTenantPermission`, `withAnyTenantPermission`, `withSystemRole`.
+- **Scope every query** with `{ tenantId }`. Return **404** for cross‑tenant IDs.
+- Structured errors: `{ error, code, details }`.
 
-### Permissions / RBAC
-- Fine-grained permission keys (`product.read`, `product.write`, `member.manage`, etc.).
-- Role-permission assignments stored in the DB.
-- Helpers:
-  - `can(permissionKey, tenantId)`
-  - `ensurePagePermission` / `ensureAnyPagePermission` for server components
-  - `withTenantPermission` / `withAnyTenantPermission` for API routes
-  - `withSystemRole` for system-level (user management) routes
-
-### File Storage
-- **AWS S3 API emulated via LocalStack** (Docker).
-- Bucket per environment (e.g. `ecom-dev-bucket`).
-- Used for product images, brand logos, and tenant assets.
+### Auditing
+- Sensitive writes call `audit(db, tenantId, userId, action, payload)`.
+- Actions observed in code (subset):
+- `brand.create`, `brand.update`, `category.create`, `category.update`, `branding.update`
+- Viewer UI to be added (see Roadmap).
 
 ### UI/UX
-- **Tailwind CSS** for styling.
-- **shadcn/ui** components for consistent design system.
-- **Lucide-react** icons.
-- Toast notifications, permission-gated buttons/forms.
-- Admin sidebar + topbar with tenant switcher.
-
-### Infrastructure (intended)
-- **Vercel** (Next.js hosting).
-- **Supabase** (Postgres, Auth, Storage, backups).
-- **AWS S3 or Supabase Storage** for production file storage.
-- Local dev runs everything with Docker (LocalStack + Postgres).
+- Tailwind + shadcn/ui + Lucide icons.
+- Tenant switcher + permission‑gated buttons/links.
+- Toast notifications, spinners, pagination controls.
+- Index page wrapper for consistent listing pages (planned).
 
 ---
 
-## 🏢 Multitenancy & RBAC
+## Architecture
 
-This project implements **row-level tenant isolation** and **role-based access control (RBAC)** to mirror how SaaS e-commerce platforms work in production.
+### High Level
+- **Next.js App Router** for both UI (server + client components) and API routes under `/app/api`.
+- **Prisma** for schema, migrations, typed queries.
+- **LocalStack S3** for uploads via presigned URLs (mirrors AWS behavior, local only).
+- **RBAC**: global + tenant scopes, plus **custom roles** where enabled.
+- **Branding**: per‑tenant values injected as CSS variables at runtime.
 
-### Tenant Model
-- Each `Tenant` represents a company/account using the system.
-- Global `User` records exist once but can belong to multiple tenants via `Membership`.
-- All catalog entities (`Product`, `Category`, `Brand`, `Image`) include a `tenantId` column.
-- Database constraints enforce per-tenant uniqueness:
-  - `@@unique([tenantId, slug])` for categories, brands, and products.
+### Core Data Models
+The Prisma schema includes (subset):
+- **Core**: Tenant, User, Membership, Role, Permission, PermissionAssignment, Product, Category, Brand, Image, AuditLog, CustomRole
+- **Other**: 
 
-### Roles & Permissions
-- **System-level roles** (global):
-  - `SUPERADMIN` → unrestricted access across all tenants.
-  - `ADMIN` → can manage tenants and users they belong to.
-  - `USER` → must have a membership in a tenant to access anything.
-- **Tenant-level roles** (scoped within each tenant):
-  - `OWNER` → full access, can manage members/roles.
-  - `ADMIN` → manage catalog + members.
-  - `EDITOR` → manage catalog only (products, categories, brands).
-  - `READONLY` → view-only access.
+> All catalog entities (`Product`, `Category`, `Brand`, `Image`) are **scoped by `tenantId`**.
 
-### Permissions
-- Fine-grained permission keys seeded per tenant:
-  - `product.read`, `product.write`
-  - `category.read`, `category.write`
-  - `brand.read`, `brand.write`
-  - `member.read`, `member.manage`
-- Permissions are assigned to roles via `PermissionAssignment`.
+### Permission Helpers
+- `can(permissionKey, tenantId?)`
+- Server pages: `ensurePagePermission`, `ensureAnyPagePermission`
+- API routes: `withTenantPermission`, `withAnyTenantPermission`, `withSystemRole`
 
-### Safeguards
-- Cannot delete or demote the **last OWNER** of a tenant.
-- Users cannot delete their own account.
-- Global **ADMIN** cannot be demoted if they are the last remaining system admin.
+**Patterns**
+```ts
+// Require a specific tenant permission
+export const POST = withTenantPermission("brand.write", async (req, { db, tenantId, session }) => {
+  // validate, check uniqueness within { tenantId }, write, audit(...)
+  return ok({ /* ... */ });
+});
 
-### Enforcement Helpers
-- **API routes**:
-  - `withTenantPermission("product.write", handler)`
-  - `withAnyTenantPermission(["category.read", "category.write"], handler)`
-  - `withSystemRole(["ADMIN", "SUPERADMIN"], handler)`
-- **Server components**:
-  - `ensurePagePermission("brand.write")`
-  - `ensureAnyPagePermission(["member.read", "member.manage"])`
+// Allow if user has any of several permissions in the tenant
+export const GET = withAnyTenantPermission(["category.read","category.write"], async (req, ctx) => { /*...*/ });
 
+// System-admin only (outside tenant scope)
+export const DELETE = withSystemRole(["ADMIN","SUPERADMIN"], async (req, { session }) => { /*...*/ });
+```
 
-### Tenant Switching
-- Tenant is resolved via a signed cookie `x-current-tenant-id`.
-- `TenantSwitcher` component lets users change their active tenant.
-- If no tenant is selected, requests fall back to the first membership or return a **403**.
+### Validation & Errors
+- Every endpoint parses and validates body/query with **Zod**.
+- On failure: `400` with flattened Zod errors.
+- Error shape example:
+```json
+{ "error": "Forbidden", "code": "FORBIDDEN", "details": {} }
+```
 
---- 
+---
 
-## 🗄 Database Models (Tenant, Membership, Role, Permissions)
+## Setup
 
-the RBAC system iss powered by four core models, plus supporting entities. All of these live in `prisma/schema.prisma`
-
-### Tenant
-- Represents a company/account in the system.  
-- Owns catalog entities (Products, Categories, Brands, Images).
-- Has many Memberships (users belonging to the tenant).
-- Key fields:
-  - `id` (string, primary key, CUID)
-  - `name` (string)
-  - `slug` (unique per system)
-
-### Membership
-- Joins a `User` to a `Tenant` with a given `Role`
-- A user can belong to multiple tenants
-- Each membership is unique per tenant + user
-- Key fields:
-  - `id` (string, CUID)
-  - `tenantId`
-  - `userId` 
-  - `roleId` 
-- Constraint `@@unique([tenantId, userId])`
-
-### Role
-- Defines a set of permissions within a tenant.
-- Seeded by default with: `OWNER`, `ADMIN`, `EDITOR`, `READONLY`.
-- Each membership is unique per tenant + user
-- Key fields:
-  - `id` (string, CUID)
-  - `tenantId`
-  - `key` (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`) 
-  - `name` (human-readable label) 
-- Constraint `@@unique([tenantId, key])`
-
-### Permission
-- Defines fine-grained actions (e.g. `product.read`, `product.write`).
-- Seeded once per tenant during bootstrap.
-- Key fields:
-  - `id`
-  - `tenantId`
-  - `key` (e.g. product.read) 
-- Constraint `@@unique([tenantId, key])`
-
-### PermissionAssignment
-- Joins a `Role` to a `Permission`.
-- Allows flexible mapping (e.g. `EDITOR` has `product.read` + `product.write` but not `member.manage`).
-- Key fields:
-  - `roleId`
-  - `permissionId`
-- Constraint `@@unique([roleId, permissionId])`
-
-
-## 🔐 Permissions Matrix
-
-
-Permissions are defined per-tenant and attached to roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).  
-They control both **API access** and **UI visibility**.  
-
-| Permission Key     | Controls                                                                 |
-|--------------------|--------------------------------------------------------------------------|
-| `product.read`     | View product list/details. Required to see products in the admin UI.      |
-| `product.write`    | Create, edit, delete products. Enables “New Product” button + table actions. |
-| `category.read`    | View category list/details. Required to see categories in the admin UI.   |
-| `category.write`   | Create, edit, delete categories. Enables “New Category” button + table actions. |
-| `brand.read`       | View brand list/details. Required to see brands in the admin UI.          |
-| `brand.write`      | Create, edit, delete brands. Enables “New Brand” button + table actions.  |
-| `member.read`      | View members of the current tenant.                                       |
-| `member.manage`    | Add/remove members, change roles. Enables “Add Member” and role dropdowns. |
-
-### Role Bundles
-
-| Role       | Granted Permissions                                                                 |
-|------------|--------------------------------------------------------------------------------------|
-| **OWNER**  | All permissions (`*.read`, `*.write`, `member.manage`). Cannot be demoted/deleted if last OWNER. |
-| **ADMIN**  | All permissions (`*.read`, `*.write`, `member.manage`).                             |
-| **EDITOR** | `product.read`, `product.write`, `brand.read`, `brand.write`, `category.read`, `category.write`. |
-| **READONLY** | `product.read`, `brand.read`, `category.read`, `member.read`.                      |
-
-> **Note:**  
-> - Global **SUPERADMIN** bypasses all tenant checks.  
-> - Global **ADMIN** can also access the Users tab (internal developer/company accounts).  
-
-## 🚀 Getting Started
-
-Follow these steps to run the project locally.
-
-### 1. Install dependencies
+### 1) Install
 ```bash
 npm install
 ```
 
-### 2. Environment variables
-Create a `.env` file in the project root:
+### 2) Environment
+Create `.env` (see `.env.example`):
 ```
-DATABASE_URL="postgresql://USER:PASSWORD@localhost:5432/dbname"
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-random-secret"
+DATABASE_URL=postgresql://USER:PASS@localhost:5432/dbname
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-secret
 
-# LocalStack S3 emulation
+# LocalStack S3
 S3_PUBLIC_BASE=http://s3.localhost.localstack.cloud:4566
 S3_ENDPOINT=http://localhost:4566
 S3_BUCKET_NAME=ecom-dev-bucket
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_REGION=us-east-1
+
+# Session timing (optional)
 AUTH_SESSION_MAX_AGE_SECONDS=28800
-AUTH_SESSION_UPDATE_AGE_SECONDS=300  
+AUTH_SESSION_UPDATE_AGE_SECONDS=300
 ```
 
-### 3. Prisma setup 
+### 3) Database
 ```bash
 npx prisma generate
 npx prisma db push
 npx prisma db seed
 ```
 
-### 4. Run LocalStack (S3 Emulator)
-Start the LocalStack Docker container:
+### 4) LocalStack (S3 emulator)
 ```bash
 docker compose up -d
-```
-The bucket will now be available at:
-```bash
-http://s3.localhost.localstack.cloud:4566/ecom-dev-bucket
+# Bucket URL pattern:
+# http://s3.localhost.localstack.cloud:4566/<bucket-name>
 ```
 
-### 5. Run the development server
+### 5) Run Dev Server
 ```bash
 npm run dev
 ```
 
-### 6. Default Admin login
-Use the seeded admin credentials:
+### Default Admin
 ```
 Email: admin@example.com
 Password: Admin123!
 ```
-Log in at `http://localhost:3000/login`
-
-### 7. Useful developer scripts
-```bash
-# Regenerate Prisma client
-npx prisma generate
-
-# Reset DB (drops all data, re-applies migrations, re-seeds)
-npx prisma migrate reset
-
-# Inspect/edit data in a UI
-npx prisma studio
-
-# Copying file structure without showing node modules or git files
-node print-tree.mjs . "node_modules,.git,.next,dist" 5
-```
 
 ---
 
-## 📂 Directory Structure
+## How Things Work
 
-The project follows a standard **Next.js App Router** layout with additional folders for Prisma, scripts, and LocalStack configuration.
+### Tenant Resolution
+- Middleware inspects cookie `x-current-tenant-id`.
+- If absent, server selects the first tenant membership.
+- The value is provided to server pages and API guards.
+
+### File Uploads
+- Client requests a **presigned POST** from `/api/admin/uploads/presign`.
+- Uploads go directly to LocalStack S3 (no file bytes through Next.js server).
+- Stored under a tenant-aware path (e.g., `tenants/<tenantId>/brands/<id>.png`).
+- Filenames sanitized and slugified.
+
+### Admin Branding
+- Per‑tenant configuration saved via `/api/admin/branding`.
+- Theme tokens are converted to **CSS variables** (`--admin-*`) and applied at root.
+- Sidebar/header use the uploaded tenant logo.
+
+### Slugs & Uniqueness
+- Input normalization: lowercase, `a‑z0‑9-` only.
+- Per‑tenant uniqueness enforced at DB level.
+- On update: exclude current record with `NOT: { id }` to avoid false conflicts.
+
+### Auditing
+- Writes call `audit(...)` with:
+  - `tenantId`, `userId`, `action`, and a compact `payload`.
+- View raw entries in DB (`AuditLog` model) while UI is pending.
+
+---
+
+## Typical Workflows
+
+### Create a Brand
+1. Go to **Admin → Brands** (must have `brand.write`).
+2. Fill name + slug (auto‑generated), optional website, upload logo.
+3. On save, server will:
+   - Validate fields (Zod).
+   - Enforce per‑tenant slug uniqueness.
+   - Write record and emit `audit("brand.create", ...)`.
+
+### Add a Product
+1. **Products → New** (needs `product.write`).  
+2. Select **Brand** and **Category** (tenant‑scoped options).  
+3. Upload primary image → presigned S3 flow.  
+4. Save → audit `product.create`.
+
+### Invite a Member
+1. **Members → Add** (needs `member.manage`).  
+2. Choose an existing user or create one (system user must exist).  
+3. Assign a role; OWNER/ADMIN may grant OWNER.  
+4. Safeguards prevent removal of last OWNER.
+
+---
+
+## Directory Structure (trimmed)
+
 ```text
 +---.localstack
 |   +---cache
@@ -367,6 +260,7 @@ The project follows a standard **Next.js App Router** layout with additional fol
 +---public
 |   +---file.svg
 |   +---globe.svg
+|   +---login-hero.jpg
 |   +---next.svg
 |   +---vercel.svg
 |   \---window.svg
@@ -544,6 +438,8 @@ The project follows a standard **Next.js App Router** layout with additional fol
 |   |   |   +---index.ts
 |   |   |   +---prisma.ts
 |   |   |   \---tenant-db.ts
+|   |   +---http
+|   |   |   \---apiFetch.ts
 |   |   +---paging
 |   |   |   +---index.ts
 |   |   |   \---query.ts
@@ -578,301 +474,77 @@ The project follows a standard **Next.js App Router** layout with additional fol
 +---package.json
 +---postcss.config.mjs
 +---print-tree.mjs
++---README-condensed.md
 +---README.md
 +---tsconfig.json
 \---tsconfig.tsbuildinfo
 ```
---- 
 
-## ☁️ Hosting & Infrastructure Costs
-
-This project is designed for cloud hosting using **Vercel (Next.js)**, **Supabase (Postgres/Auth/Storage)**, and **S3-compatible storage**.  
-Below are estimated monthly costs at different scales. These are **not actual bills**, but learning-oriented ballpark figures.
-
-### Frontend + API (Next.js)
-- **Vercel Pro**: $20 per developer/month  
-  Includes: SSR/ISR, API routes, CDN, custom domains, SSL.  
-- Alternative: self-host via **AWS EC2** or **DigitalOcean Droplet** (~$5–$20/month).  
-
-👉 **Typical budget:** $20–$50/month
-
-### Database (Supabase Postgres)
-- **Free tier:** 500MB storage, 50k requests/month.  
-- **Pro tier:** $25/month → 8GB storage, 8GB bandwidth.  
-- Scales with storage:  
-  - 50GB DB → ~$100/month  
-  - 200GB DB → ~$400/month  
-
-👉 **Typical budget:** $25–$100/month initially
-
-### Storage (Product images, logos, docs)
-- AWS S3 pricing: **$0.023/GB stored** + **$0.09/GB egress**.  
-- Example usage:  
-  - 10k images (500KB avg) → 5GB = ~$0.12/month  
-  - 100k images → 50GB = ~$1.15/month  
-- Bandwidth/downloads are the main cost driver.  
-
-👉 **Typical budget:** $5–$25/month
-
-### Authentication & Emails
-- **NextAuth.js**: free.  
-- OAuth providers (Google, Microsoft, GitHub, etc.): free.  
-- Transactional email (Postmark, SendGrid, etc.): ~$15–$50/month depending on volume.  
-
-👉 **Typical budget:** $0–$30/month
-
-### Estimated Totals
-- **Small project / dev use:** ~$50–$100/month  
-- **Growing tenant base:** ~$150–$300/month  
-- **Enterprise scale (PITR, high storage, backups):** $500–$800/month  
+> Tip: Use `node print-tree.mjs . "node_modules,.git,.next,dist" 10` to print your own local tree.
 
 ---
 
-## 🗄️ Database Backups & Snapshots
+## Scripts & Utilities
+```bash
+npx prisma generate         # sync client after schema changes
+npx prisma migrate reset    # drop + reapply + seed (local only)
+npx prisma studio           # GUI to inspect/edit data
 
-This project uses **Postgres via Supabase** in development/production.  
-Protecting tenant-scoped data requires a reliable backup and recovery strategy.
+# Repair seeded roles/permissions if needed
+node scripts/fix-roles.js
 
-### Daily Automated Backups (included)
-- **Supabase Pro Plan**: 1 daily backup retained for 7 days  
-- **Team Plan**: retained for 14 days  
-- **Enterprise Plan**: retained up to 30 days  
-- No additional cost — included with the base plan.  
-- Restores are full-database only (not per-tenant).
-
-### Point-in-Time Recovery (PITR) — Optional Add-on
-- Allows restoring to *any second* within the configured retention window.  
-- Useful for tenant data recovery after accidental deletes/updates.  
-- Billed hourly for the period PITR is enabled.
-
-| Retention | Approx Monthly Cost* | Notes |
-|-----------|-----------------------|-------|
-| 7 days    | ~$100/month           | Suitable for dev/test or low-risk prod |
-| 14 days   | ~$200/month           | Balance of cost vs safety |
-| 28 days   | ~$400/month           | High assurance for enterprise |
-
-\* Example based on full activation for a 744-hour month.
-
-### Summary Table
-
-| Backup Type                | Included? | Retention     | Granularity | Cost                 |
-|-----------------------------|-----------|---------------|-------------|----------------------|
-| **Daily Backups**           | ✅        | 7/14/30 days  | 1/day       | Free (in plan)       |
-| **PITR (add-on)**           | ❌        | 7–28 days     | Per-second  | $100–$400/month      |
-
-### Recommendations
-- For **learning/dev**: daily automated backups are more than enough.  
-- For **production tenants**: enable PITR at least 7–14 days for safety against user error.  
-- Always test restore workflows before relying on them in real deployments.  
+# Debug: copy file tree (ignore heavy dirs)
+node print-tree.mjs . "node_modules,.git,.next,dist" 10
+```
 
 ---
 
-## 🌱 Seed Data & Test Accounts
+## Troubleshooting
 
-The Prisma seed script (`prisma/seed.ts`) bootstraps a **demo environment** with tenants, users, roles, permissions, and some catalog data.  
-This makes it easy to log in and test tenant/permission flows without manual setup.
-
-### Tenants Created
-- **default** → baseline demo tenant  
-- **acme** → second tenant for cross-tenant testing  
-
-Each tenant is seeded with:
-- Core roles: `OWNER`, `ADMIN`, `EDITOR`, `READONLY`  
-- Permission assignments (scoped CRUD access for products, categories, brands, members)  
-- Example categories, brands, and products
-
-### Demo Users
-The seed script creates several users and memberships:
-
-| Email                       | Password   | Global Role   | Tenant Memberships |
-|-----------------------------|------------|---------------|--------------------|
-| **superadmin@example.com**  | Super123!  | SUPERADMIN    | All tenants (OWNER) |
-| **admin@example.com**       | Admin123!  | ADMIN         | `default` tenant (OWNER) |
-| **owner+default@example.com** | Owner123! | USER          | `default` tenant (OWNER) |
-| **editor@example.com**      | Editor123! | USER          | `default` tenant (EDITOR) |
-| **readonly@example.com**    | Read123!   | USER          | `default` tenant (READONLY) |
-
-> ℹ️ You can tweak these accounts or add more by editing `prisma/seed.ts`.
-
-### Debug Logging
-At the end of `seed.ts`, the script prints each user’s **effective permissions per tenant** so you can verify roles were applied correctly. Example:
-
+### 1) Prisma client not generated
 ```
-User: owner+default@example.com
-
-Tenant: default
-Effective perms: category.read, category.write, product.read, product.write, ...
+npx prisma generate
 ```
 
-### Usage
-- Log in with **superadmin@example.com / Super123!** to switch between tenants.  
-- Try creating/deleting products and categories as different roles to confirm the permission system.  
-- Use `npx prisma migrate reset` to reset + reseed everything if you need a clean slate.
+### 2) Reset DB completely
+```
+npx prisma migrate reset
+```
+
+### 3) LocalStack S3 “NoSuchBucket”
+- Ensure the bucket exists inside LocalStack:
+```
+docker exec -it localstack bash
+awslocal s3 mb s3://ecom-dev-bucket
+```
+
+### 4) LocalStack not responding
+- Verify Docker is running.
+- Start services: `docker compose up -d`.
+- Check: `docker ps --filter "name=localstack"`.
+
+### 5) NextAuth JWT decryption failed
+- Confirm `NEXTAUTH_SECRET` is set.
+- Restart dev server, clear cookies for `localhost:3000`.
+
+### 6) “No tenant selected”
+- Use Tenant Switcher to set `x-current-tenant-id`.
+- Removing the cookie falls back to first membership.
+
+### 7) Permission issues
+- Confirm your user’s global role and tenant membership.
+- Use **superadmin@example.com / Super123!** for full access.
+
+### 8) Slug conflict on update
+- Ensure server uses `NOT: { id }` in uniqueness checks.
 
 ---
 
-## 🖥️ Admin Dashboard
-
-The **Dashboard** is the landing page of the admin panel.  
-It gives each user a quick overview of their tenant’s data and provides shortcuts to the modules they are allowed to access.
-
-### Features
-- **Welcome header** with the logged-in user’s email.
-- **At-a-glance stats** for key entities:
-  - Total Products
-  - Total Categories
-  - Total Users (system-wide, Admin/Superadmin only)
-- **Quick Links** section:
-  - Links appear **conditionally** based on the user’s permissions.
-  - Example:  
-    - `product.read` → shows *Manage Products*  
-    - `category.read` → shows *Manage Categories*  
-    - `brand.read` → shows *Manage Brands*  
-    - `member.read` → shows *Manage Members*  
-    - `system:users` (Admin/Superadmin only) → shows *Manage Users*
-
-### UX / UI
-- Clean **card-based layout** (Tailwind + shadcn/ui).  
-- Grid adapts responsively (1 column → 2 columns → 3 columns).  
-- Cards highlight counts in bold for quick scanning.  
-- Quick Links styled as underlined shortcuts for faster navigation.
-
-### Permissions
-- Dashboard itself is always visible after login.  
-- **Cards & links respect RBAC**:  
-  - A user without `product.read` won’t see *Products* stats or links.  
-  - Members with `READONLY` roles still see dashboard counts but not management links.  
-  - Global *Users* tab is only visible to `ADMIN` and `SUPERADMIN`.
-
----
-
-## API Hardening
-This project enforces `multitenant isolation`, `role/permission checks` and `consistent error handling` across all `/api/admin` routes. Below is how it's wired and what to watch for when adding new endpoints.
-
-### Route guards (who can call the route?)
-- **Tenant-scoped permissions**
-  - `withTenantPermission("x.")` - require a specific permission within the current tenant (e.g. product.write).
-  - `withAnyTenantPermission(["a.b", "c.d"])` - allow access if the user holds any of the listed permissions in the current tenant.
-- **System-level roless (global)**
-  - `withSystemRole(["ADMIN", "SUPERADMIN"])` - restrict endpoints to internal operators on (e.g. "Users" module).
-
-Examples:
-```ts
-// Brand CRUD (tenant-scoped)
-export const POST = withTenantPermission("brand.write", async (req, { db, tenantId, session }) => { /*...*/ });
-
-// Category listing (read OR write allowed)
-export const GET = withAnyTenantPermission(["category.read", "category.write"], async (req, ctx) => { /*...*/ });
-
-// Users API (internal only)
-export const DELETE = withSystemRole(["ADMIN","SUPERADMIN"], async (req, { session }) => { /*...*/ });
-```
-
-### Tenant Context (what data can they touch?)
-- All queries must be explicitly scoped by `tenantId`
-- For lookups/mutations by ID, verify `{ id, tenantId } together
-  - If the record doesn't belong to the current tenant -> return 404 (not 403) to avoid disclosing cross-tenant existence.
-- Uniqueness (like slugs) must be enforced per-tenant, never globally
-
-Patterns:
-```ts
-// Read by id (scoped)
-const row = await db.category.findFirst({ where: { id, tenantId } });
-if (!row) return error(404, "NOT_FOUND", "Category not found");
-
-// Per-tenant slug uniqueness
-const exists = await db.brand.findFirst({ where: { tenantId, slug: normalizedSlug, NOT: { id } } });
-if (exists) return error(409, "CONFLICT", "Slug already exists in this tenant");
-
-```
-
-### Validation (don’t trust inputs)
-- Use Zod for all request bodies and query params.
-- Return 400 with the flattened Zod error when invalid.
-- Normalize/trim strings (e.g., `slugify()`, `String.trim())`, and enforce patterns: `^[a-z0-9-]+$`.
-
-Patterns
-```ts
-const bodySchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  slug: z.string().min(2).regex(/^[a-z0-9-]+$/, "Slug can only contain a-z, 0-9 and hyphens"),
-});
-
-const parsed = bodySchema.safeParse(await req.json());
-if (!parsed.success) return error(400, "VALIDATION", "Invalid request body", parsed.error.flatten());
-```
-
-### Error responses (consistent shape)
-All endpoints return a consistent JSON structure via helpers:
-- `ok(data, opts?)` → success
-- `error(status, code, message, details?)` → failure
-
-### Conventions
-- 401 UNAUTHENTICATED – no session/invalid auth
-- 403 FORBIDDEN – authenticated but missing permission/role
-- 404 NOT_FOUND – not found or belongs to a different tenant
-- 409 CONFLICT – unique constraint or business rule conflict
-- 400 VALIDATION/BAD_REQUEST – schema or field-level validation error
-
-### Auditing (who did what, when?)
-- Sensitive writes call audit(db, tenantId, session.user.id, action, payload).
-- Currently used in Brands & Categories CRUD (brand.create/update/delete, category.create/update/delete).
-- Do the same for Products/Members where appropriate.
-
-### Pagination, search & sorting (avoid heavy scans)
-- Use a query schema for GET endpoints (e.g., q, page, limit, sort).
-- Whitelist sort fields/directions.
-- Always cap limit (e.g., max 100).
-
-```ts
-const querySchema = z.object({
-  q: z.string().trim().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
-  sort: z.enum(["createdAt:desc", "createdAt:asc", "name:asc", "name:desc"]).default("createdAt:desc"),
-});
-```
-
-### Next.js App Router (dynamic params)
-- In route handlers, Next 15 passes req only—parse the id from the URL if needed:
-```ts
-const url = new URL(req.url);
-const id = url.pathname.split("/").pop() || "";
-```
-- In server pages, dynamic `params` are async:
-```ts
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-}
-```
-
-### Safeguards (business rules)
-- Members: can’t demote/remove the last OWNER in a tenant.
-- Users (system-level): can’t delete yourself; can’t demote the last ADMIN.
-- Ownership escalation: Only OWNER (in-tenant) or global ADMIN/SUPERADMIN can promote to OWNER.
-Enforce these in API routes with clear 400 errors when blocked.
-
-### Authorization on the client (defense in depth)
-- Use Server actions (canWriteX, canManageMembers) to hide/disable UI controls.
-- Never rely on UI alone—server routes must still enforce permissions.
-
-### Do / Don’t
-✅ Do include { tenantId } in every where-clause for tenant data.
-✅ Do validate all inputs with Zod; normalize/trim strings.
-✅ Do return 404 for cross-tenant IDs (don’t leak existence).
-✅ Do audit sensitive writes.
-❌ Don’t accept arbitrary fields (whitelist with Zod).
-❌ Don’t sort by untrusted fields; whitelist sort values.
-❌ Don’t expose internal error messages; use structured error().
-
-### Mini checklist for new endpoints
-- [] Choose the correct guard: withTenantPermission / withAnyTenantPermission / withSystemRole.
-- [] Parse and validate params/body with Zod.
-- [] Scope every read/write by { tenantId }.
-- [] Enforce per-tenant uniqueness (use NOT: { id } on updates).
-- [] Return consistent error() responses.
-- [] Add audit() for create/update/delete.
-- [] Limit results & validate sorting for list endpoints.
+## Security Notes (Why not Production?)
+- No rate limiting or advanced WAF.
+- No password reset / email verification flow.
+- Minimal audit surfacing; logs stored but no UI yet.
+- Assumes trusted developer environment.
 
 ---
 
@@ -968,6 +640,385 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [x] Audit log entries for branding updates (who changed what, when).  
 
 ### 🚧 Planned Epics
+
+### [P1] Epic: CSRF, CORS & Security Headers
+**Scope:** Prevent cross-site attacks and tighten browser posture.  
+**📍 Blast radius:** **Global** — middleware + **all mutating routes** and any client that performs POST/PUT/PATCH/DELETE.  
+**🧭 Complexity (t-shirt):** **M** (straightforward, but touches many handlers)  
+**🔀 Parallelizable:** High (headers/CSP in middleware; CSRF token plumbing in parallel across forms)  
+**RBAC:** N/A (framework-level).
+
+- [ ] Double-submit **CSRF** token for all mutations: `csrf` cookie + `x-csrf-token` header.
+  - _Why:_ Cookie-backed sessions are CSRF-prone; token blocks cross-site form/posts.
+  - _Replaces:_ No CSRF defense today (not production-safe).
+- [ ] Strict **Origin/Referer** checks on `POST/PUT/PATCH/DELETE`.
+  - _Why:_ Secondary guard if CSRF token leaks; rejects cross-origin mutations.
+  - _Replaces:_ No origin validation today.
+- [ ] Locked-down **CORS**: deny all except app origin; no credentials for public GET unless required.
+  - _Why:_ Stops unauth origins from calling APIs with creds.
+  - _Replaces:_ Implicit/loose CORS behavior.
+- [ ] Global security headers via middleware: CSP (script/img/connect/frame), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`.
+  - _Why:_ Mitigates XSS, clickjacking, data exfiltration; enforces allowed sources (e.g., S3/LocalStack).
+  - _Replaces:_ Default headers (too permissive for prod).
+- [ ] Unit/integration tests (expected rejections + good path).
+  - _Why:_ Prevent regressions on future routes.
+  - _Replaces:_ Ad-hoc manual validation.
+
+**💰 Cost:** none.
+
+---
+
+### [P1] Epic: Tenant Isolation Enforcement
+**Scope:** Defense-in-depth so no query escapes tenant scope.  
+**📍 Blast radius:** **Global** — Prisma client extension, **most data access**; optional DB migrations for RLS.  
+**🧭 Complexity (t-shirt):** **L** (⬆ to **XL** if adopting full DB RLS now)  
+**🔀 Parallelizable:** Medium (Prisma `$extends` + tests first; RLS later behind a flag)  
+**RBAC:** Existing.
+
+- [ ] Prisma `$extends` that **auto-injects** `{ tenantId }` for scoped models; throw if missing.
+  - _Why:_ Prevents “forgot to add tenantId” bugs.
+  - _Replaces:_ Manual scoping (easy to miss in new code).
+- [ ] Disallow unscoped reads/writes in shared models (unit tests to enforce).
+  - _Why:_ Test gate catches regressions early.
+  - _Replaces:_ Informal discipline only.
+- [ ] (Optional Advanced) DB-level **RLS** policies; set `app.tenant` per request via Prisma raw.
+  - _Why:_ DB hard barrier; even missed filters won’t leak.
+  - _Replaces:_ App-only isolation (good, but not bulletproof).
+- [ ] “Cross-tenant id” test suite (must return **404**, not 403).
+  - _Why:_ Avoids existence leaks; codifies the pattern.
+  - _Replaces:_ Ad-hoc checks.
+
+**💰 Cost:** none.
+
+---
+
+### [P1] Epic: Observability & Error Handling
+**Scope:** Understand what’s happening and fail gracefully.  
+**📍 Blast radius:** **Global** — middleware, API error handling, shared logger; light UI changes for boundaries/toasts.  
+**🧭 Complexity (t-shirt):** **M**  
+**🔀 Parallelizable:** High (server logging/error envelope in parallel with UI boundaries)  
+**RBAC:** N/A.
+
+- [ ] Structured logger (`pino`) with redaction; include `requestId`, `userId`, `tenantId`, latency.
+  - _Why:_ Queryable logs; avoid PII leakage.
+  - _Replaces:_ `console.log`-style output.
+- [ ] Request-ID middleware; propagate via headers & context.
+  - _Why:_ Correlate client ↔ server ↔ audit entries.
+  - _Replaces:_ No correlation id.
+- [ ] Central error handler: map exceptions → consistent `error(code,message,details)`.
+  - _Why:_ Stable contract to clients; easier debugging.
+  - _Replaces:_ Mixed ad-hoc error responses.
+- [ ] UI error boundaries + user-friendly toasts across forms/tables.
+  - _Why:_ Avoid blank screens; improve recovery.
+  - _Replaces:_ Occasional `alert()` or default boundaries.
+
+**💰 Cost:** optional error tracking SaaS later; free tiers exist.
+
+---
+
+### [P1] Epic: Test Suite (Unit + Integration + E2E + Security)
+**Scope:** Expand “Unit testing” into full coverage of critical paths.  
+**📍 Blast radius:** **Global** — adds tests across modules; minimal production code churn.  
+**🧭 Complexity (t-shirt):** **L** (breadth, not difficulty)  
+**🔀 Parallelizable:** Very high (by module/suite)  
+**RBAC:** N/A.
+
+- [ ] **Unit:** validators, guards, slug rules, helpers (`ok/error`, perms).
+  - _Why:_ Fast feedback on logic; prevents regressions.
+  - _Replaces:_ Sparse/no unit tests.
+- [ ] **Integration:** API routes against test Postgres (Testcontainers); tenant scope & transactions.
+  - _Why:_ Validates server wiring & DB contracts.
+  - _Replaces:_ Manual testing.
+- [ ] **Security:** CSRF failures, rate limits, upload spoofing, over-long inputs.
+  - _Why:_ Keeps defenses intact over time.
+  - _Replaces:_ None.
+- [ ] **E2E (Playwright):** sign-in, switch tenant, CRUD flows, branding update, image upload.
+  - _Why:_ Prevents UI regressions in core flows.
+  - _Replaces:_ Click-through testing.
+- [ ] Coverage thresholds per folder; CI summary artifact.
+  - _Why:_ Keeps quality from drifting.
+  - _Replaces:_ No objective target.
+
+**💰 Cost:** none.
+
+---
+
+### [P1] Epic: Idempotency & Transactional Integrity
+**Scope:** Prevent duplicate writes and maintain invariants.  
+**📍 Blast radius:** **Wide** — **most create endpoints**; adds a small table & transactions; moderate refactors in write paths.  
+**🧭 Complexity (t-shirt):** **M/L** (depends on number of create flows)  
+**🔀 Parallelizable:** Medium (idempotency + transactions can ship by module)  
+**RBAC:** Existing.
+
+- [ ] `Idempotency-Key` header for create endpoints; `IdempotencyKey` table (key, route, responseHash, TTL).
+  - _Why:_ Network retries won’t duplicate records/charges.
+  - _Replaces:_ Non-idempotent POST creates.
+- [ ] Interactive transactions for multi-step invariants (e.g., last OWNER checks + update).
+  - _Why:_ All-or-nothing correctness; avoids partial writes.
+  - _Replaces:_ Sequential writes without txn.
+- [ ] Optimistic concurrency: conditional updates on `updatedAt`/`version`.
+  - _Why:_ Prevent lost updates on concurrent edits.
+  - _Replaces:_ Blind updates.
+
+**💰 Cost:** none.
+
+---
+
+### [P2] Epic: Session & Auth Hardening (repo-only) — **Supersedes “Activity timeouts”**
+**Scope:** Strong sessions, verified accounts, optional 2FA, lockouts.  
+**📍 Blast radius:** **Moderate** — auth routes, session config, some UI; can be phased.  
+**🧭 Complexity (t-shirt):** **L** overall (Phase A **M**, Phase B **M**)  
+**🔀 Parallelizable:** Medium (flows are cohesive)  
+**RBAC:** Public (auth flows) + existing roles.
+
+- **Phase A (no-cost, do now):**
+  - [ ] Enforce strict cookie/session config (httpOnly, secure in prod, `sameSite`, short `maxAge`, rotation on sign-in).
+    - _Why:_ Reduces theft/replay risk; enforces secure defaults.
+    - _Replaces:_ Dev-grade defaults.
+  - [ ] Password policy via Zod (min length, char classes, breach block via local list).
+    - _Why:_ Stops trivial passwords now; HIBP hash check can be added later.
+    - _Replaces:_ Weak/absent server-side policy.
+  - [ ] Optional **TOTP 2FA** + backup codes (no SMS).
+    - _Why:_ Big uplift vs credential stuffing; free.
+    - _Replaces:_ Single-factor logins only.
+  - [ ] Brute-force login **lockout** integrated with rate limit backoff.
+    - _Why:_ Throttle attacks; UX explains lockouts.
+    - _Replaces:_ Unlimited attempts.
+
+- **Phase B (costed, later):**
+  - [ ] Email verification flow: `/api/auth/verify-email` + hashed single-use tokens (TTL).
+    - _Why:_ Prevents account takeovers; common requirement.
+    - _Replaces:_ No verification.
+  - [ ] Password reset flow: request/reset endpoints + hashed tokens; audit events.
+    - _Why:_ Essential account recovery.
+    - _Replaces:_ No reset flow.
+
+**💰 Cost:** Phase A: none. Phase B: transactional email ~$15–$50/mo when you’re ready.
+
+---
+
+### [P2] Epic: Rate Limiting & Abuse Controls
+**Scope:** Throttle sensitive endpoints to reduce brute-force & scraping.  
+**📍 Blast radius:** **Wide** — middleware touchpoint + **auth and admin routes**; low refactor.  
+**🧭 Complexity (t-shirt):** **M**  
+**🔀 Parallelizable:** High (per-endpoint policies roll out incrementally)  
+**RBAC:** N/A.
+
+- [ ] Lightweight rate-limit lib (`src/lib/security/ratelimit.ts`) with pluggable store.
+  - _Why:_ Centralizes throttling; dev in-memory, prod Redis later.
+  - _Replaces:_ No systematic throttling.
+- [ ] Limits for: login, reset, verify, sign-up (if added), `/api/admin/*` mutations.
+  - _Why:_ Most abused paths; protects state & email reputation.
+  - _Replaces:_ No endpoint-specific policies.
+- [ ] Per-IP + per-account keys; exponential backoff; optional CAPTCHA gate on high failure rate.
+  - _Why:_ Defends against distributed & targeted attacks.
+  - _Replaces:_ None.
+
+**💰 Cost:** none now (in-memory). Later Redis ~$0–$10/mo; CAPTCHA can be free.
+
+---
+
+### [P2] Epic: Developer Experience & Config Safety
+**Scope:** Reduce mistakes and speed up contributions.  
+**📍 Blast radius:** **Global** — env loader, hooks, lint/test pre-commit; minimal runtime changes.  
+**🧭 Complexity (t-shirt):** **M**  
+**🔀 Parallelizable:** High (each guard rail is independent)  
+**RBAC:** N/A.
+
+- [ ] Strict `.env` validation (Zod) — fail fast at boot; separate server vs client exposure.
+  - _Why:_ Prevents misconfig in prod; safer secrets handling.
+  - _Replaces:_ Loose env checks.
+- [ ] Pre-commit hooks: ESLint, typecheck, test subset, secret-scan.
+  - _Why:_ Catches issues before they land.
+  - _Replaces:_ Post-commit fixups.
+- [ ] `.env.example` drift checker script to ensure parity with `env.ts`.
+  - _Why:_ Docs stay accurate; onboarding is smooth.
+  - _Replaces:_ Manually maintained example.
+- [ ] Harden seed/utility scripts (exit codes, clear logs).
+  - _Why:_ Predictable tooling behavior for CI/local.
+  - _Replaces:_ Best-effort scripting.
+
+**💰 Cost:** none.
+
+---
+
+### [P3] Epic: Upload Pipeline Hardening
+**Scope:** Make file uploads safe and consistent.  
+**📍 Blast radius:** **Targeted** — upload endpoints/components + small libs (magic sniff, sharp).  
+**🧭 Complexity (t-shirt):** **M**  
+**🔀 Parallelizable:** Medium (server pipeline + UI validations)  
+**RBAC:** Existing.
+
+- [ ] **Magic-number** detection; reject MIME spoofing.
+  - _Why:_ `Content-Type` can lie; blocks polyglot attacks.
+  - _Replaces:_ Trusting client MIME.
+- [ ] Size & dimension caps; normalize with `sharp` (strip EXIF, resize presets, recompress).
+  - _Why:_ Prevents oversized payloads/metadata leaks.
+  - _Replaces:_ Raw pass-through uploads.
+- [ ] Block SVG or sanitize before allowing.
+  - _Why:_ SVG can execute scripts; high XSS risk.
+  - _Replaces:_ Unsanitized SVGs.
+- [ ] Allow-list of extensions & MIME; tenant-scoped keys; never accept user-supplied paths.
+  - _Why:_ Prevents path traversal & arbitrary file types.
+  - _Replaces:_ Looser validation.
+- [ ] Presigned URLs w/ minimal privileges & short TTL; audit (`upload.create`, `upload.delete`).
+  - _Why:_ Limits exposure, improves traceability.
+  - _Replaces:_ Generic presign without least-privilege/TTL.
+
+**💰 Cost:** none.
+
+---
+
+### [P3] Epic: Audit Log Integrity & Viewer
+**Scope:** Make audits tamper-evident and visible.  
+**📍 Blast radius:** **Moderate** — audit writes across mutations + a new UI page.  
+**🧭 Complexity (t-shirt):** **M**  
+**🔀 Parallelizable:** Medium (DB change first, UI next)  
+**RBAC:** Admin/Superadmin; Tenant OWNER/ADMIN as needed.
+
+- [ ] Extend `AuditLog` with `prevHash`, `hash` (sha256 chain), `requestId`, `ip`, `userAgent`.
+  - _Why:_ Tamper-evident chain; ties actions to requests and clients.
+  - _Replaces:_ Plain rows w/out integrity linkage.
+- [ ] Store **diffs** for updates (minimal JSON patch).
+  - _Why:_ Faster forensics; see exactly what changed.
+  - _Replaces:_ “Updated X” with no details.
+- [ ] Build **Audit UI** (filter by tenant, actor, action, date) + export to CSV/JSON.
+  - _Why:_ Practical visibility for operators.
+  - _Replaces:_ DB-only inspection.
+- [ ] Integrity checker script (verifies hash chain).
+  - _Why:_ Detects tampering or accidental edits.
+  - _Replaces:_ None.
+
+**💰 Cost:** none.
+
+---
+
+### [P3] Epic: Performance & Scaling Hygiene
+**Scope:** Keep queries fast as data grows.  
+**📍 Blast radius:** **Targeted** — Prisma schema/migrations + select query call-sites; minimal UI impact.  
+**🧭 Complexity (t-shirt):** **M**  
+**🔀 Parallelizable:** High (per-model/index changes)  
+**RBAC:** N/A.
+
+- [ ] Add indexes: `(tenantId, slug)`, `(tenantId, createdAt)`, `(tenantId, name)` and FK lookups used by lists.
+  - _Why:_ Removes table scans and slow lookups.
+  - _Replaces:_ Minimal/implicit indexes only.
+- [ ] Switch large lists to **cursor pagination** (stable sort key).
+  - _Why:_ Better performance than offset at scale.
+  - _Replaces:_ Offset pagination everywhere.
+- [ ] Limit `COUNT(*)` usage; prefer `take + 1` with `hasMore`.
+  - _Why:_ Avoids expensive counts on big tables.
+  - _Replaces:_ Count-first pagination.
+
+**💰 Cost:** none.
+
+---
+
+### [P4] Epic: API Contracts & Versioning
+**Scope:** Make APIs explicit and changeable safely.  
+**📍 Blast radius:** **Wide** — generate docs; minimal route renames if adopting `/api/v1/*`.  
+**🧭 Complexity (t-shirt):** **M**  
+**🔀 Parallelizable:** Medium (establish v1, then migrate modules)  
+**RBAC:** N/A.
+
+- [ ] Generate OpenAPI (or adopt tRPC for end-to-end typing).
+  - _Why:_ Consumers know the contract; easier testing/docs.
+  - _Replaces:_ Implicit route shapes.
+- [ ] Establish `/api/v1/*` namespace; deprecation policy.
+  - _Why:_ Enables breaking changes without breaking clients.
+  - _Replaces:_ Ungrouped routes.
+- [ ] Contract tests to prevent breaking changes.
+  - _Why:_ CI guardrail against accidental API drift.
+  - _Replaces:_ None.
+
+**💰 Cost:** none.
+
+---
+
+### [P4] Epic: Privacy, PII & Data Lifecycle
+**Scope:** Respect user data and prepare for compliance.  
+**📍 Blast radius:** **Moderate** — schema changes for encryption/retention + selected handlers.  
+**🧭 Complexity (t-shirt):** **L**  
+**🔀 Parallelizable:** Medium (by data domain)  
+**RBAC:** Admin/system.
+
+- [ ] Map PII fields; stricter Zod schemas with length caps & formats.
+  - _Why:_ Avoid storing unnecessary/unsafe values.
+  - _Replaces:_ Generic string fields without caps.
+- [ ] Optional field-level encryption for sensitive columns (Prisma middleware + AES-GCM).
+  - _Why:_ Mitigates DB snapshot leaks/insider risk.
+  - _Replaces:_ Plaintext sensitive data.
+- [ ] Data retention config; purge expired artifacts/logs.
+  - _Why:_ Reduce blast radius; meet policies.
+  - _Replaces:_ Infinite retention.
+- [ ] “Right to erasure” helpers (soft-delete + PII scrubbing).
+  - _Why:_ Compliance readiness; user trust.
+  - _Replaces:_ Hard delete or nothing.
+- [ ] Download-my-data export (tenant-scoped JSON).
+  - _Why:_ Transparency & compliance.
+  - _Replaces:_ Manual DB pulls.
+
+**💰 Cost:** none.
+
+---
+
+### [P4] Epic: Feature Flags & Kill Switches
+**Scope:** Ship risky features safely.  
+**📍 Blast radius:** **Targeted** — small registry + checks around new features.  
+**🧭 Complexity (t-shirt):** **S/M**  
+**🔀 Parallelizable:** High (wrap modules progressively)  
+**RBAC:** Admin/system.
+
+- [ ] Minimal flag registry + TypeScript types with per-tenant overrides.
+  - _Why:_ Gradual rollouts; quick revert if needed.
+  - _Replaces:_ Hardcoded booleans.
+- [ ] Gate new modules (e.g., branches/locations, storefront CMS).
+  - _Why:_ Isolate unstable features.
+  - _Replaces:_ Always-on modules.
+- [ ] Emergency kill switches for auth + uploads.
+  - _Why:_ Cut off compromised paths quickly.
+  - _Replaces:_ Code edits + redeploys.
+
+**💰 Cost:** none (self-hosted flags).
+
+---
+
+### [P5] Epic: Accessibility & UX Hardening
+**Scope:** Avoid support issues and meet basic standards.  
+**📍 Blast radius:** **Moderate** — many form/table components; low back-end impact.  
+**🧭 Complexity (t-shirt):** **M**  
+**🔀 Parallelizable:** High (per-page/feature)  
+**RBAC:** N/A.
+
+- [ ] WCAG AA pass on forms (labels, aria, focus, keyboard traps).
+  - _Why:_ Accessibility + better keyboard UX for everyone.
+  - _Replaces:_ Inconsistent semantics.
+- [ ] Consistent empty/error/loading states across tables & forms.
+  - _Why:_ Predictable UI, lower churn.
+  - _Replaces:_ Ad-hoc placeholders.
+- [ ] Sticky save bar for long forms; dirty-form guard modal (continue/discard/save-and-leave).
+  - _Why:_ Prevent data loss; faster editing.
+  - _Replaces:_ Non-sticky actions, accidental navigations.
+- [ ] Toasts everywhere; remove `alert()` usage entirely.
+  - _Why:_ Non-blocking, consistent notifications.
+  - _Replaces:_ Alerts (jarring, blocking).
+
+**💰 Cost:** none.
+
+---
+
+## Definition of Done — “Production Ready” (Repo)
+- [ ] All **P1** epics complete: CSRF/CORS/Headers, Tenant Isolation Enforcement, Observability & Error Handling, Test Suite, Idempotency & Transactions.  
+  - _Why:_ Highest-leverage, **global** or near-global improvements with no ongoing cost.
+- [ ] **P2** epics: Session/Auth (Phase A), Rate Limiting, DevX/Config Safety.  
+  - _Why:_ Tightens auth posture and keeps quality high with minimal cost.
+- [ ] **P3** epics: Upload Hardening, Audit Integrity & Viewer, Performance indexes & cursor pagination.  
+  - _Why:_ Targeted security + scalability.
+- [ ] **P4–P5** epics: API Contracts/Versioning, Privacy/PII, Feature Flags, Accessibility.  
+  - _Why:_ Productization and compliance readiness.
+
+> Notes: All items above are repo-only; ops/deploy/WAF/CDN/DB PITR are intentionally out of scope here. Ordering prioritizes **no-cost**, **global-impact early**, and **security importance**.
+
 
 ### Epic: Activity timeouts
 - [ ] Introduce session tokens that expire after a given time. This will be controlled within the .env file so we can easily test it on different environments. 
@@ -1083,187 +1134,58 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ---
 
+## ☁️ Hosting & Infrastructure Costs
 
-### 1. Prisma Client not generated
-If you see errors like *“`@prisma/client` did not initialize”*, regenerate the client:
+This project is designed for cloud hosting using **Vercel (Next.js)**, **Supabase (Postgres/Auth/Storage)**, and **S3-compatible storage**.  
+Below are estimated monthly costs at different scales. These are **not actual bills**, but learning-oriented ballpark figures.
 
-```bash
-# Regenerate Prisma client
-npx prisma generate
+### Frontend + API (Next.js)
+- **Vercel Pro**: $20 per developer/month  
+  Includes: SSR/ISR, API routes, CDN, custom domains, SSL.  
+- Alternative: self-host via **AWS EC2** or **DigitalOcean Droplet** (~$5–$20/month).  
 
-```
+👉 **Typical budget:** $20–$50/month
 
----
+### Database (Supabase Postgres)
+- **Free tier:** 500MB storage, 50k requests/month.  
+- **Pro tier:** $25/month → 8GB storage, 8GB bandwidth.  
+- Scales with storage:  
+  - 50GB DB → ~$100/month  
+  - 200GB DB → ~$400/month  
 
-### 2. Resetting the database
-When migrations or seed data get out of sync, reset the DB completely:
+👉 **Typical budget:** $25–$100/month initially
 
-```bash
-# WARNING: Drops all data, re-applies migrations, and runs seed (if configured)
-npx prisma migrate reset
+### Storage (Product images, logos, docs)
+- AWS S3 pricing: **$0.023/GB stored** + **$0.09/GB egress**.  
+- Example usage:  
+  - 10k images (500KB avg) → 5GB = ~$0.12/month  
+  - 100k images → 50GB = ~$1.15/month  
+- Bandwidth/downloads are the main cost driver.  
 
-```
+👉 **Typical budget:** $5–$25/month
 
-This will **drop all data**, re-apply migrations, and run the seed script.
+### Authentication & Emails
+- **NextAuth.js**: free.  
+- OAuth providers (Google, Microsoft, GitHub, etc.): free.  
+- Transactional email (Postmark, SendGrid, etc.): ~$15–$50/month depending on volume.  
 
----
+👉 **Typical budget:** $0–$30/month
 
-### 3. Inspect/edit data
-To quickly view or edit records in your Postgres database, use Prisma Studio:
-
-```bash
-npx prisma studio
-```
-
----
-
-### 4. NextAuth JWT decryption errors
-If login suddenly fails with errors like *“JWT decryption failed”*:
-- Make sure `NEXTAUTH_SECRET` is set in your `.env`.  
-- Restart the dev server after updating it.  
-- If issues persist, clear cookies for `localhost:3000`.
-
----
-
-### 5. LocalStack S3 bucket missing
-If uploads fail with *“NoSuchBucket”*, ensure your development bucket exists inside the LocalStack container:
-
-```bash
-# Open a shell inside the LocalStack container (container name is usually 'localstack')
-docker exec -it localstack bash
-
-# Inside the container:
-awslocal s3 mb s3://ecom-dev-bucket
-exit
-
-```
+### Estimated Totals
+- **Small project / dev use:** ~$50–$100/month  
+- **Growing tenant base:** ~$150–$300/month  
+- **Enterprise scale (PITR, high storage, backups):** $500–$800/month  
 
 ---
 
-### 6. LocalStack service not running
-If requests to `http://localhost:4566` fail:
-- Confirm Docker is running.  
-- Start LocalStack manually:
-
-```bash
-# Start services (including LocalStack) in the background
-docker compose up -d
-
-# Verify LocalStack is running
-docker ps --filter "name=localstack"
-
-# (Optional) Restart just LocalStack if needed
-docker compose restart localstack
-```
+## Glossary
+- **Tenant**: a company/account inside the system (owns catalog + users via memberships).
+- **Membership**: links a `User` to a `Tenant` with a role.
+- **Role**: a set of permissions inside a tenant (`OWNER`, etc., or custom).
+- **Permission**: fine‑grained capability (e.g., `product.write`).
+- **System Role**: global role across all tenants (`SUPERADMIN`, `ADMIN`, `USER`).
 
 ---
 
-### 7. Tenant cookie missing
-If you see “No tenant selected” in the admin UI:
-- Switch tenants using the **Tenant Switcher** dropdown.  
-- Check that the cookie `x-current-tenant-id` is being set in your browser dev tools.  
-- Removing the cookie falls back to your first available tenant membership.
-
----
-
-### 8. Common safeguards
-- You **cannot delete yourself** from the Users or Members tables.  
-- You **cannot demote or remove the last OWNER** of a tenant.  
-- System `ADMIN` users cannot be demoted if they are the last one in the global system.  
-
-These rules are enforced at both the API and UI level.
-
----
-
-## 🛠️ Scripts & Developer Utilities
-
-This project includes several helper scripts and Prisma commands to make development and testing easier.  
-
-### Prisma
-- **Generate Prisma client**  
-  Keeps the TypeScript client in sync with your schema.  
-```bash
-npx prisma generate
-```
-
-- **Reset the database**  
-  Drops all data, reapplies migrations, and runs the seed script.  
-```bash
-npx prisma migrate reset
-```
-
-- **Inspect or edit data with Prisma Studio**  
-  GUI for browsing and editing the database.  
-```bash
-npx prisma studio
-```
-
-### LocalStack
-- **Start LocalStack (S3 emulator)**  
-  Runs a local AWS S3-compatible service in Docker.  
-```bash
-docker compose up -d
-```
-
-- **Create the development bucket**  
-  Run once inside the LocalStack container.  
-```bash
-awslocal s3 mb s3://ecom-dev-bucket
-```
-
-### Custom Scripts
-- **Fix roles script**  
-  Ensures tenant roles and permissions are seeded or repaired if migrations change.  
-```bash
-node scripts/fix-roles.js
-```
-
-### Notes
-- These commands are safe for local development.  
-- Running `reset` will erase **all data** in your local database.  
-- Always re-run `prisma generate` if you update `schema.prisma`.  
-```bash
-node print-tree.mjs . "node_modules,.git,.next,dist" 10
-```
-
----
-
-## 🔒 Security Notes
-
-⚠️ **Important:** This project is a learning exercise only. It is **not intended for production use**.
-
-- **Authentication**
-  - Uses **NextAuth (credentials)** with bcrypt-hashed passwords.
-  - JWT sessions are encrypted with `NEXTAUTH_SECRET`.  
-    → If this value changes, all users will be logged out.  
-
-- **Multitenancy isolation**
-  - All CRUD operations are scoped to the active `tenantId` via helpers (`getCurrentTenantId`, `tenantDb`, `getApiTenantCtx`).  
-  - API routes enforce tenant checks with guards (`withTenantPermission`, `withAnyTenantPermission`).  
-  - Cross-tenant access attempts result in **403 Forbidden** or **404 Not Found**.
-
-- **Role-based access control (RBAC)**
-  - Each tenant has `OWNER`, `ADMIN`, `EDITOR`, `READONLY` roles with predefined permissions.  
-  - Safeguards prevent **demoting or deleting the last OWNER** of a tenant.  
-  - Global `SUPERADMIN` bypasses tenant restrictions (developer use only).  
-  - Global `ADMIN`/`SUPERADMIN` are the only accounts that can access the **Users** tab (system-wide user management).
-
-- **System Admin protections**
-  - Cannot delete your own account.
-  - Cannot demote the last global `ADMIN`.
-  - Safeguards prevent lockouts at both system and tenant levels.
-
-- **File uploads**
-  - Stored in S3 (emulated with LocalStack in dev).  
-  - User-provided filenames are sanitized and slugified to prevent path traversal.  
-
-- **Validation & errors**
-  - All API routes validate request bodies with **Zod**.  
-  - Error responses follow a consistent JSON shape:  
-    ```json
-    { "error": "Forbidden", "code": "FORBIDDEN", "details": { ... } }
-    ```
-
-- **Non-production warning**
-  - No rate limiting, audit logging, or password reset flows are implemented.  
-  - For practice only—**do not deploy with real user data**.
+## License
+Learning/demo code. Use at your own risk. Replace or add your preferred license for public release.
