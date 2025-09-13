@@ -263,11 +263,14 @@ NEXTAUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="your-random-secret"
 
 # LocalStack S3 emulation
-S3_ENDPOINT="http://localhost:4566"
-S3_BUCKET="ecom-dev-bucket"
+S3_PUBLIC_BASE=http://s3.localhost.localstack.cloud:4566
+S3_ENDPOINT=http://localhost:4566
+S3_BUCKET_NAME=ecom-dev-bucket
 AWS_ACCESS_KEY_ID=test
 AWS_SECRET_ACCESS_KEY=test
 AWS_REGION=us-east-1
+AUTH_SESSION_MAX_AGE_SECONDS=28800
+AUTH_SESSION_UPDATE_AGE_SECONDS=300  
 ```
 
 ### 3. Prisma setup 
@@ -281,11 +284,6 @@ npx prisma db seed
 Start the LocalStack Docker container:
 ```bash
 docker compose up -d
-```
-then create the development bucket once inside the container 
-```bash
-docker exec -it localstack bash
-awslocal s3 mb s3://ecom-dev-bucket
 ```
 The bucket will now be available at:
 ```bash

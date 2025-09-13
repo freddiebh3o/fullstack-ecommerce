@@ -249,7 +249,7 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full text-white" disabled={submitting || !canSubmit}>
+                <Button type="submit" className="w-full text-white dark:text-black" disabled={submitting || !canSubmit}>
                   {submitting ? "Signing in…" : "Sign in"}
                 </Button>
               </form>
