@@ -34,6 +34,7 @@ import {
   CardAction,
   CardContent,
 } from "@/components/ui/card";
+import Image from "next/image";
 
 import type { BrandingTheme, ThemePalette } from "@/lib/branding/defaults";
 import { DEFAULT_THEME as DEFAULTS } from "@/lib/branding/defaults";
@@ -85,6 +86,16 @@ function toCssVars(p: ThemePalette): React.CSSProperties {
     ["--radius-md" as any]: p.radii.md,
     ["--shadow-sm" as any]: p.shadows.sm,
     ["--shadow-md" as any]: p.shadows.md,
+
+    // === Sidebar tokens (used by AdminSidebar) ===
+    ["--sidebar" as any]: p.colors.surface,
+    ["--sidebar-foreground" as any]: p.colors.text,
+    ["--sidebar-border" as any]: p.colors.border,
+    ["--sidebar-primary" as any]: p.colors.primary,
+    ["--sidebar-ring" as any]: p.colors.ring ?? p.colors.primaryHover,
+
+    // Header title token used by sidebar hover/active text
+    ["--header-title" as any]: p.colors.headerTitle ?? p.colors.text,
   } as React.CSSProperties;
 }
 
@@ -464,9 +475,86 @@ export default function BrandingThemeForm({ initial, canWrite }: Props) {
             <section
               className={`branding-preview ${previewDark ? "dark" : ""}`}
               style={toCssVars(previewPalette)}
-              data-admin
             >
               <div className="grid gap-4">
+                {/* ===== Sidebar preview (matches AdminSidebar styles) ===== */}
+                <div
+                  className="rounded-lg overflow-hidden"
+                  style={{
+                    background: "var(--card)",
+                    color: "var(--card-foreground)",
+                    border: "1px solid var(--border)",
+                    boxShadow: "var(--shadow-sm)",
+                  }}
+                >
+                  <div className="px-4 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+                    <div className="text-sm font-medium">Sidebar preview</div>
+                    <div className="text-xs text-muted-foreground">Shows your logo + link states with sidebar tokens</div>
+                  </div>
+
+                  <div className="p-4">
+                    <div
+                      className="sidebar-preview rounded-md border"
+                      style={{
+                        background: "var(--sidebar)",
+                        color: "var(--sidebar-foreground)",
+                        borderColor: "var(--sidebar-border)",
+                      }}
+                    >
+                      {/* Logo area (same structure as AdminSidebar) */}
+                      <div
+                        className="p-3 border-b flex items-center justify-center"
+                        style={{ borderColor: "var(--sidebar-border)" }}
+                      >
+                        {theme.logoUrl ? (
+                          <Image
+                            src={theme.logoUrl}
+                            alt="Tenant logo"
+                            width={120}
+                            height={40}
+                            className={`h-10 w-auto object-contain ${previewDark ? "invert" : ""}`}
+                            priority
+                          />
+                        ) : (
+                          <div className="text-xs opacity-75">No logo uploaded</div>
+                        )}
+                      </div>
+
+                      {/* Sample links (hover/active/focus use the same tokens as AdminSidebar) */}
+                      <nav className="p-3">
+                        <ul className="space-y-1">
+                          {[
+                            { label: "Dashboard", active: false },
+                            { label: "Products", active: true }, // active example
+                            { label: "Categories", active: false },
+                            { label: "Brands", active: false },
+                          ].map((item) => (
+                            <li key={item.label}>
+                              <div
+                                className={[
+                                  "group flex items-center rounded-md px-3 py-2 text-sm outline-none transition-colors",
+                                  "cursor-default select-none", // not clickable in preview
+                                  "text-[color-mix(in_oklab,var(--sidebar-foreground),transparent_20%)]",
+                                  // Hover (uses primary-hover + header-title)
+                                  "hover:bg-[var(--primary-hover)] hover:text-[var(--header-title)]",
+                                  // Focus ring (sidebar ring token) — show on keyboard nav demo
+                                  "focus-visible:ring-[3px] focus-visible:ring-[color-mix(in_oklab,var(--sidebar-ring),transparent_50%)] focus-visible:border-[var(--sidebar-ring)]",
+                                  // Active (current page) uses sidebar-primary + header-title
+                                  item.active ? "bg-[var(--sidebar-primary)] text-[var(--header-title)] font-medium" : "",
+                                ].join(" ")}
+                                tabIndex={0}
+                                aria-current={item.active ? "page" : undefined}
+                              >
+                                {item.label}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Card: header + content */}
                 <div
                   className="rounded-lg overflow-hidden"

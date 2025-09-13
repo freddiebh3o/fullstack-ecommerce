@@ -1,6 +1,4 @@
 // src/lib/branding/utils.ts
-// Central utilities for branding: object checks, deep merge, and theme coercion.
-
 import { DEFAULT_THEME, type BrandingTheme, type ThemePalette } from "./defaults";
 
 /** Narrow object check (non-array) */
@@ -42,16 +40,27 @@ export function deepMerge<T>(base: T, patch: Partial<T>): T {
  * - Preserves DEFAULT_THEME where fields are missing.
  * - Handles legacy shapes gracefully.
  */
-export function coerceTheme(json: any, defaults: BrandingTheme = DEFAULT_THEME): BrandingTheme {
+export function coerceTheme(
+  json: any,
+  defaults: BrandingTheme = DEFAULT_THEME
+): BrandingTheme {
   if (!json || !isObject(json)) return defaults;
 
   const light = deepMerge<ThemePalette>(defaults.light, (json as any).light ?? {});
   const dark  = deepMerge<ThemePalette>(defaults.dark,  (json as any).dark  ?? {});
 
-  const logoUrl =
-    (json as any).logoUrl !== undefined
-      ? (json as any).logoUrl
+  // Only accept string|null; otherwise fall back to defaults
+  const rawLogo = (json as any).logoUrl;
+  const logoUrl: string | null =
+    typeof rawLogo === "string" || rawLogo === null
+      ? rawLogo
       : (defaults.logoUrl ?? null);
 
-  return { light, dark, logoUrl };
+  // Carry forward metaVersion, allowing an explicit numeric override if present
+  const metaVersion =
+    typeof (json as any).metaVersion === "number"
+      ? (json as any).metaVersion
+      : defaults.metaVersion;
+
+  return { metaVersion, light, dark, logoUrl };
 }

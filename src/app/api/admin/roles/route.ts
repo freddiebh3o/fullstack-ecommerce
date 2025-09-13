@@ -7,6 +7,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth";
 import { can } from "@/lib/auth/permissions";
 import { Prisma } from "@prisma/client";
+import { NextRequest } from "next/server";
 
 const keyRegex = /^[a-z0-9._-]+$/; // conservative, url-safe keys
 
@@ -23,7 +24,7 @@ async function allowed(session: any, tenantId: string) {
   return can("role.manage", tenantId);
 }
 
-export const GET = async (_req: Request, { params }: { params: { id: string } }) => {
+export const GET = async (_req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return error(401, "UNAUTHENTICATED", "You must be signed in");
   const { db, tenantId } = await tenantDb();
@@ -38,7 +39,6 @@ export const GET = async (_req: Request, { params }: { params: { id: string } })
     },
   });
 
-  // Shape to a clean payload
   const payload = roles.map((r) => ({
     id: r.id,
     key: r.key,
@@ -53,7 +53,7 @@ export const GET = async (_req: Request, { params }: { params: { id: string } })
   return ok(payload);
 };
 
-export const POST = async (req: Request) => {
+export const POST = async (req: NextRequest) => {
   const session = await getServerSession(authOptions);
   if (!session) return error(401, "UNAUTHENTICATED", "You must be signed in");
   const { db, tenantId } = await tenantDb();

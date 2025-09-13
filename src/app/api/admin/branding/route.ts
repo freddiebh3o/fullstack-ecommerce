@@ -117,7 +117,8 @@ export const PUT = async (req: Request) => {
   const next: BrandingTheme = {
     light: nextLight,
     dark: nextDark,
-    logoUrl: logoUrl !== undefined ? logoUrl : current.logoUrl,
+    logoUrl: logoUrl !== undefined ? logoUrl : current.logoUrl ?? null,
+    metaVersion: current.metaVersion ?? DEFAULT_THEME.metaVersion,
   };
 
   // Persist normalized JSON; keep column logoUrl in sync for legacy reads
@@ -128,11 +129,30 @@ export const PUT = async (req: Request) => {
     select: { theme: true, logoUrl: true, id: true },
   });
 
+  function diffObj<T extends Record<string, any>>(before: T, after: T) {
+    const out: Record<string, { before: any; after: any }> = {};
+    const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+    for (const k of keys) {
+      if (JSON.stringify(before?.[k]) !== JSON.stringify(after?.[k])) {
+        out[k] = { before: before?.[k], after: after?.[k] };
+      }
+    }
+    return out;
+  }
+  
+  const lightDiff = light ? {
+    colors: light.colors ? diffObj(current.light.colors, nextLight.colors) : undefined,
+  } : undefined;
+  
+  const darkDiff = dark ? {
+    colors: dark.colors ? diffObj(current.dark.colors, nextDark.colors) : undefined,
+  } : undefined;
+  
   await audit(db, tenantId, (session.user as any).id, "branding.update", {
-    changed: {
-      light: !!light,
-      dark: !!dark,
-      logoUrl: logoUrl !== undefined ? (logoUrl ?? null) : "unchanged",
+    changes: {
+      logoUrl: logoUrl !== undefined ? { before: current.logoUrl ?? null, after: next.logoUrl ?? null } : undefined,
+      light: lightDiff,
+      dark: darkDiff,
     },
   });
 

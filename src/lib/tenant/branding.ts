@@ -79,6 +79,7 @@ export async function upsertTenantBranding(
     : current.dark;
 
   const next: BrandingTheme = {
+    metaVersion: current.metaVersion ?? DEFAULT_THEME.metaVersion, 
     logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : current.logoUrl,
     light: nextLight,
     dark: nextDark,

@@ -885,12 +885,6 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [x] Slug uniqueness enforced per tenant.
 - [x] Product table actions gated with `PermissionGate` -> REMOVED.
 
-
-### 🚧 Planned Epics
-
-===ACTIVITY TIMEOUTS===
-
-
 #### Epic: Custom Roles & Permissions
 
 **Scope:** Allow tenant OWNER/ADMIN users (and system-level Admin/Superadmin) to define custom roles with fine-grained permissions, beyond the default seeded roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).
@@ -915,16 +909,55 @@ This section tracks which larger feature areas (Epics) have already been integra
 **Scope:** Controls the look & feel of the **admin panel only**. Storefront identity (logos, themes, CMS content) will be a **future epic**.
 
 **Features (RBAC: OWNER/ADMIN only)**  
-- [ ] Tenant can upload an **admin logo** (shown in sidebar/header).  
-- [ ] Tenant can configure **admin theme colors** (accent, sidebar, background, etc).  
-- [ ] Branding settings stored per-tenant in the database.  
-- [ ] Admin UI loads tenant branding automatically on login/tenant switch.  
-- [ ] Changes apply instantly across the admin panel (via theme provider/context).  
-- [ ] Safeguards: only OWNER/ADMIN roles can update branding.  
-- [ ] Fallback to default theme if tenant branding not configured.  
-- [ ] Audit log entries for branding updates (who changed what, when).  
+- [x] Tenant can upload an **admin logo** (shown in sidebar/header).  
+- [x] Tenant can configure **admin theme colors** (accent, sidebar, background, etc).  
+- [x] Branding settings stored per-tenant in the database.  
+- [x] Changes apply instantly across the admin panel (via theme provider/context).  
+- [x] Safeguards: only OWNER/ADMIN roles can update branding.  
+- [x] Fallback to default theme if tenant branding not configured.  
+- [x] Audit log entries for branding updates (who changed what, when).  
 
-#### Epic: Storefront CMS & Branding
+### 🚧 Planned Epics
+
+### Epic: Activity timeouts
+- [ ] Introduce session tokens that expire after a given time. This will be controlled within the .env file so we can easily test it on different environments. 
+- [ ] On session expiration, redirect to login screen 
+- [ ] On any logout, redirect to the login screen
+- [ ] Refactor the login screen to look much nicer. Split the page in two, loging form on the left, big image on the right
+
+### Epic: Branches/Locations
+- [ ] Decice on the best appraoch for this. Should it just default to every tenant starts off with 1 location and they can just build out from there? Or is it feature enabled per tenant that allows that specific tenant to spilt their stock up between different branches? Pros and cons
+- [ ] Not only product stock is split across different locations, but everything will be, from what customers you have, what suppliers you have, your orders etc
+
+### Epic: Find better alternative colour picker
+- [ ] Look into some pre built colour pickers
+
+### Epic: Better dirty state management - Should be done along side the form changes
+- [ ] Admin UI loads tenant branding automatically on login/tenant switch.  
+- [ ] On tenant switch, all state should be reset
+- [ ] Better dirty state management on forms. Disalble save buttons if forms arent dirty. Discard changes button if form is dirty 
+- [ ] If user tries to leave the page when form is dirty, show confirmation modal with three options, continue without saving/cancel/Save and continue
+
+### Epic: Introduce new branding theme and components into the form pages
+- [ ] Create global form component wrapper for all forms on the admin panel to use
+- [ ] Implement this new global form component across all pages that would use it
+  - [ ] New/Edit product
+  - [ ] New/Edit Category
+  - [ ] New/Edit Brand
+  - [ ] New/Edit Member
+  - [ ] New/Edit User
+  - [ ] New/Edit Roles
+- [ ] All forms use toast notifications instead of alerts.
+- [ ] Sticky save bar on long forms.
+
+### Epic: Branches/Locations
+- [ ] Add `Branch` model linked to tenant.  
+- [ ] Products can be branch-specific (optional).  
+- [ ] Orders can select branch for fulfillment.  
+- [ ] Customers can have preferred branch.  
+- [ ] Feature flag per tenant/plan.  
+
+### Epic: Storefront CMS & Branding
 
 **Scope:** Allows tenant OWNER/ADMIN users to customize their public-facing storefront with branding and content.
 
@@ -937,16 +970,10 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [ ] Storefront dynamically applies tenant branding and content at runtime.  
 - [ ] (Optional later) Custom domains or subdomains per tenant (`tenant.example.com`).  
 
-#### Epic: Branches/Locations
-- [ ] Add `Branch` model linked to tenant.  
-- [ ] Products can be branch-specific (optional).  
-- [ ] Orders can select branch for fulfillment.  
-- [ ] Customers can have preferred branch.  
-- [ ] Feature flag per tenant/plan.  
 
 ### Epic: Media Library & image editting
 - [ ] Index page for any images/videos uploaded to the platform
-- [ ] Ability to edit the image (crop/rotate etc) on upload and when the user edits
+- [ ] Ability to edit the image (crop/rotate etc) on upload and when the user edits. Probably best in a side modal
 
 #### Epic: Product Media & Details
 - [ ] Admins can upload multiple images for a product, reorder them, and set alt text.
@@ -954,45 +981,42 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [ ] Admins can set product status (Draft/Active/Archived) and schedule publish.
 - [ ] Admins can add compare-at price and cost price.
 
-#### Epic: Product Data Modeling
+### Epic: Product Data Modeling
 - [ ] Admins can define product options (Size, Color) and generate variants.
 - [ ] Admins can set variant-level stock and price.
 - [ ] Admins can add product attributes/specs (key/value).
 
-#### Epic: Product List UX
-- [ ] Admins can search and filter products by text, category, brand, tag, status.
-- [ ] Admins can paginate and sort the product list.
-- [ ] Admins can bulk-select products and apply actions (publish/unpublish/delete).
+### Epic: Index pages 
+- [x] Global index page wrapper created to be used on all index pages
+- [x] Update products index page
+- [x] Update categories index page
+- [x] Update brands index page
+- [x] Update members index page
+- [x] Update users index page
+- [x] Update roles index page
+- [ ] Bulk actions row above the column for bulk selecting/deleting
 
-#### Epic: Categories UX
-- [ ] Admins can view categories in a tree and reorder them.
-- [ ] Admins can hide categories without deleting.
-- [ ] Admins see product counts per category including subcategories.
-
-#### Epic: Brands & Tags UX
-- [ ] Admins can search and paginate brands, see product counts.
-- [ ] Admins can merge duplicate tags.
+### Epic: Introducing subcategories and tags
+- [ ] Decide on best place to put these. Should they have their own dedicated admin panel, or should they be intergrated elsewhere for example, the subcategories could be intergrated into the edit category page itself? 
 - [ ] Admins can create tags and attach them to products.
+- [ ] Admins can create subcategories that will be attached to products.
+- [ ] Admins can merge duplicate tags.
 
-#### Epic: Customers (B2B accounts)
+### Epic: Customers (B2B accounts)
 - [ ] Admins can create customers with details (name, contact, billing info).  
 - [ ] Customers can have traits/contracts (price overrides, credit terms, max order size).  
 - [ ] Portal customers can log in, view pricing, place orders.  
 - [ ] Admins can view orders per customer across branches.  
 
-#### Epic: Suppliers
+### Epic: Suppliers
 - [ ] Admins can create suppliers (name, contact, product catalog).  
 - [ ] Products linked to suppliers (cost-side relationship).  
 - [ ] Supplier management (min order qty, lead times, cost price).  
 - [ ] Purchase orders raised against suppliers.  
 - [ ] Supplier reporting (spend, stock, performance).  
 
-#### Epic: Admin UX Polish
-- [ ] All forms use toast notifications instead of alerts.
-- [ ] Sticky save bar on long forms.
-- [ ] Unsaved changes warning before navigation.
 
-#### Epic: Integrity & Safety
+### Epic: Integrity & Safety
 - [ ] Audit log of recent changes (who/what/when).
 - [ ] Export tenant data (JSON/CSV).
 - [ ] Rate-limit sensitive ops per tenant.
@@ -1000,9 +1024,6 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ---
 
-## 🛠️ Troubleshooting & Tips
-
-This project is still evolving, and a few common issues can crop up during local development.  
 
 ### 1. Prisma Client not generated
 If you see errors like *“`@prisma/client` did not initialize”*, regenerate the client:
