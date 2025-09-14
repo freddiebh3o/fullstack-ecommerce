@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
+import { db as systemDb } from "@/lib/db/prisma";
 import { getCurrentTenantId } from "@/lib/tenant/resolve";
 import { canAny } from "@/lib/auth/permissions";
 import { ensureSystemRole } from "@/lib/auth/guards/system";
@@ -85,12 +86,13 @@ export default async function AdminPage() {
   const maySeeUsers = (await ensureSystemRole(["ADMIN", "SUPERADMIN"])).allowed;
 
   // Fetch counts (tenant-scoped where applicable)
+  const { db } = await tenantDb(); // scoped client
   const [productCount, categoryCount, brandCount, memberCount, userCount] = await Promise.all([
-    canProducts ? db.product.count({ where: { tenantId } }) : Promise.resolve(null),
-    canCategories ? db.category.count({ where: { tenantId } }) : Promise.resolve(null),
-    canBrands ? db.brand.count({ where: { tenantId } }) : Promise.resolve(null),
-    canMembers ? db.membership.count({ where: { tenantId } }) : Promise.resolve(null),
-    maySeeUsers ? db.user.count() : Promise.resolve(null), // system-wide
+    canProducts ? db.product.count({ where: {} }) : Promise.resolve(null),
+    canCategories ? db.category.count({ where: {} }) : Promise.resolve(null),
+    canBrands ? db.brand.count({ where: {} }) : Promise.resolve(null),
+    canMembers ? db.membership.count({ where: {} }) : Promise.resolve(null),
+    maySeeUsers ? systemDb.user.count() : Promise.resolve(null), // system-wide
   ]);
 
   return (

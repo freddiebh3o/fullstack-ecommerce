@@ -1,5 +1,5 @@
 // src/app/admin/products/[id]/edit/page.tsx
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import { notFound } from "next/navigation";
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
@@ -9,16 +9,16 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
   const perm = await ensurePagePermission("product.write");
   if (!perm.allowed) return <ForbiddenPage />;
 
-  const { tenantId } = perm;
   const { id } = await params;
+  const { db } = await tenantDb();
 
   const [product, categories, brands] = await Promise.all([
     db.product.findFirst({
-      where: { id, tenantId },
+      where: { id },
       include: { category: true, brand: true, images: { orderBy: { sortOrder: "asc" } } },
     }),
-    db.category.findMany({ where: { tenantId }, select: { name: true, slug: true }, orderBy: { name: "asc" } }),
-    db.brand.findMany({ where: { tenantId }, select: { name: true, slug: true }, orderBy: { name: "asc" } }),
+    db.category.findMany({ select: { name: true, slug: true }, orderBy: { name: "asc" } }),
+    db.brand.findMany({ select: { name: true, slug: true }, orderBy: { name: "asc" } }),
   ]);
 
   if (!product) notFound();

@@ -1,3 +1,4 @@
+// src/lib/tenant/bootstrap.ts
 import { db } from "@/lib/db/prisma";
 import { DEFAULT_THEME } from "@/lib/branding/defaults";
 

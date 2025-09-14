@@ -54,3 +54,9 @@ export async function getCurrentTenantId(): Promise<string | null> {
   // 4) nothing
   return null;
 }
+
+export async function requireTenantId(): Promise<string> {
+  const id = await getCurrentTenantId();
+  if (!id) throw new Error("No tenant selected");
+  return id;
+}

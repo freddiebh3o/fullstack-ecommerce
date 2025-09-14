@@ -1,27 +1,20 @@
 // src/lib/api/context.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession, type Session } from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import { getCurrentTenantId } from "@/lib/tenant/resolve";
+import type { PrismaClient } from "@prisma/client";
 
 /**
  * Standardizes auth + tenant resolution for Admin API routes.
  * - requires system role ADMIN or SUPERADMIN
- * - tries cookie-selected tenant first
- * - falls back to the user's first membership (handy in dev)
- *
- * Usage:
- *   const ctx = await getApiTenantCtx();
- *   if ('error' in ctx) return ctx.error; // early return
- *   const { db, tenantId, session } = ctx;
+ * - uses cookie-selected tenant (getCurrentTenantId already falls back to first membership)
  */
-export async function getApiTenantCtx():
-  Promise<
-    | { error: NextResponse }
-    | { db: typeof db; tenantId: string; session: any }
-  >
-{
+export async function getApiTenantCtx(): Promise<
+  | { error: NextResponse }
+  | { db: PrismaClient; tenantId: string; session: Session }
+> {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
 
@@ -32,25 +25,12 @@ export async function getApiTenantCtx():
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
 
-  // 1) preferred: whatever the switcher put in the token/cookie
-  let tenantId = await getCurrentTenantId();
-
-  // 2) fallback: first membership (nice for first-run/dev)
-  if (!tenantId) {
-    const first = await db.membership.findFirst({
-      where: { userId: session.user.id },
-      select: { tenantId: true },
-      orderBy: { createdAt: "asc" },
-    });
-    tenantId = first?.tenantId ?? null;
-  }
-
+  const tenantId = await getCurrentTenantId();
   if (!tenantId) {
     return { error: NextResponse.json({ error: "No tenant selected" }, { status: 400 }) };
   }
 
-  // If you later return a $extends-scoped client, do it here.
-  const scoped = db;
-
-  return { db: scoped, tenantId, session };
+  // Tenant-scoped client (internally validates tenant via requireTenantId)
+  const { db } = await tenantDb();
+  return { db, tenantId, session };
 }

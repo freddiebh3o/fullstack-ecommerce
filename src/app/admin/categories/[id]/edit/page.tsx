@@ -1,6 +1,6 @@
 // src/app/admin/categories/[id]/edit/page.tsx
 import { notFound } from "next/navigation";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
 import EditCategoryForm from "@/components/admin/edit-category-form";
@@ -10,11 +10,11 @@ export default async function EditCategoryPage({ params }: { params: Promise<{ i
   const perm = await ensurePagePermission("category.write");
   if (!perm.allowed) return <ForbiddenPage />;
 
-  const { tenantId } = perm;
   const { id } = await params;
+  const { db } = await tenantDb();
 
   const cat = await db.category.findFirst({
-    where: { id, tenantId },
+    where: { id },
     include: { _count: { select: { products: true } } },
   });
 

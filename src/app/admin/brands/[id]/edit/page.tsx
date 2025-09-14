@@ -1,5 +1,5 @@
 // src/app/admin/brands/[id]/edit/page.tsx
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import { notFound } from "next/navigation";
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
@@ -9,12 +9,10 @@ export default async function EditBrandPage({ params }: { params: Promise<{ id: 
   const perm = await ensurePagePermission("brand.write");
   if (!perm.allowed) return <ForbiddenPage />;
 
-  const { tenantId } = perm;
   const { id } = await params;
+  const { db } = await tenantDb();
 
-  const brand = await db.brand.findFirst({
-    where: { id, tenantId },
-  });
+  const brand = await db.brand.findFirst({ where: { id } });
   if (!brand) notFound();
 
   return (

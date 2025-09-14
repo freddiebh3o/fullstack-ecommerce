@@ -1,8 +1,8 @@
 // src/app/admin/brands/page.tsx
 import Link from "next/link";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import ForbiddenPage from "@/app/403/page";
-import { ensureAnyPagePermission } from "@/lib/auth/guards/page";
+import { ensureAnyPagePermission, ensurePagePermission } from "@/lib/auth/guards/page";
 import { can } from "@/lib/auth/permissions";
 import AdminIndexShell from "@/components/admin/index/admin-index-shell";
 import DataToolbar from "@/components/admin/index/data-toolbar";
@@ -30,9 +30,9 @@ export default async function AdminBrandsPage({
   // View allowed for read OR write
   const perm = await ensureAnyPagePermission(["brand.read", "brand.write"]);
   if (!perm.allowed) return <ForbiddenPage />;
-  const { tenantId } = perm;
+  const { db } = await tenantDb();
 
-  const mayWrite = await can("brand.write", tenantId);
+  const mayWrite = (await ensurePagePermission("brand.write")).allowed;
 
   // ---- Parse query (page/per/sort/dir/q) ----
   const sp = (await searchParams) ?? {};
@@ -53,7 +53,6 @@ export default async function AdminBrandsPage({
 
   // Where clause (tenant + optional search + dates)
   const where: Prisma.BrandWhereInput = {
-    tenantId,
     ...(q.q
       ? {
           OR: [
@@ -74,18 +73,22 @@ export default async function AdminBrandsPage({
   // Fetch rows + total
   const [brands, total] = await Promise.all([
     db.brand.findMany({
-      where,
-      orderBy,
-      skip,
-      take,
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        logoUrl: true,
-        createdAt: true,
-        _count: { select: { products: true } },
-      },
+      where, 
+      orderBy, 
+      skip, 
+      take, 
+      select: { 
+        id:true, 
+        name:true, 
+        slug:true, 
+        logoUrl:true, 
+        createdAt:true,
+        _count:{
+          select:{ 
+            products:true 
+          }
+        }
+      }
     }),
     db.brand.count({ where }),
   ]);

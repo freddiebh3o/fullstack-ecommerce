@@ -1,5 +1,5 @@
 // src/app/admin/products/new/page.tsx
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
 import NewProductForm from "@/components/admin/new-product-form";
@@ -8,11 +8,11 @@ export default async function NewProductPage() {
   const perm = await ensurePagePermission("product.write");
   if (!perm.allowed) return <ForbiddenPage />;
 
-  const { tenantId } = perm;
+  const { db } = await tenantDb();
 
   const [categories, brands] = await Promise.all([
-    db.category.findMany({ where: { tenantId }, select: { name: true, slug: true }, orderBy: { name: "asc" } }),
-    db.brand.findMany({ where: { tenantId }, select: { name: true, slug: true }, orderBy: { name: "asc" } }),
+    db.category.findMany({select: { name: true, slug: true }, orderBy: { name: "asc" } }),
+    db.brand.findMany({select: { name: true, slug: true }, orderBy: { name: "asc" } }),
   ]);
 
   return (

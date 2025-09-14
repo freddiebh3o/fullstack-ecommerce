@@ -1,6 +1,6 @@
 // src/app/admin/members/page.tsx
 import Link from "next/link";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import ForbiddenPage from "@/app/403/page";
 import { ensureAnyPagePermission, ensurePagePermission } from "@/lib/auth/guards/page";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export default async function MembersPage({
 }) {
   const perm = await ensureAnyPagePermission(["member.read", "member.manage"]);
   if (!perm.allowed) return <ForbiddenPage />;
-  const { tenantId } = perm;
+  const { db } = await tenantDb();
 
   // can the viewer manage members?
   const mayManage = (await ensurePagePermission("member.manage")).allowed;
@@ -55,7 +55,6 @@ export default async function MembersPage({
 
   // Where clause
   const where: Prisma.MembershipWhereInput = {
-    tenantId,
     ...(q.q
       ? {
           OR: [
@@ -91,7 +90,6 @@ export default async function MembersPage({
     }),
     db.membership.count({ where }),
     db.role.findMany({
-      where: { tenantId },
       select: { id: true, key: true, name: true },
       orderBy: { key: "asc" },
     }),

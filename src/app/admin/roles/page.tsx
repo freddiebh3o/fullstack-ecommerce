@@ -2,7 +2,7 @@
 import Link from "next/link";
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import { can } from "@/lib/auth/permissions";
 import AdminIndexShell from "@/components/admin/index/admin-index-shell";
 import DataToolbar from "@/components/admin/index/data-toolbar";
@@ -19,9 +19,9 @@ export default async function RolesPage({
 }) {
   const perm = await ensurePagePermission("role.manage");
   if (!perm.allowed) return <ForbiddenPage />;
-  const { tenantId } = perm;
+  const { db } = await tenantDb();
 
-  const mayManage = await can("role.manage", tenantId);
+  const mayManage = (await ensurePagePermission("role.manage")).allowed;
 
   const sp = (await searchParams) ?? {};
   const q = parseIndexQuery(sp);
@@ -36,7 +36,6 @@ export default async function RolesPage({
   const orderBy = sortMap[q.sort] ?? sortMap.name;
 
   const where: Prisma.RoleWhereInput = {
-    tenantId,
     ...(q.q
       ? {
           OR: [

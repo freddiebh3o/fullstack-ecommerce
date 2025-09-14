@@ -1,15 +1,14 @@
 // src/lib/db/tenant-db.ts
 import { db } from "@/lib/db/prisma";
-import { getCurrentTenantId } from "@/lib/tenant/resolve";
+import { requireTenantId } from "@/lib/tenant/resolve";
+import { prismaForTenant } from "./tenant-extends";
 
 /**
- * Canonical helper for all routes.
- * Always returns both the Prisma client and the resolved tenantId.
+ * Canonical helper for all tenant-scoped routes/pages.
+ * Returns an extended Prisma client that enforces tenant isolation.
  */
 export async function tenantDb() {
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) throw new Error("No tenant selected");
-  // If you later add Prisma $extends for auto-scoping, swap `db` for the extended client.
-  const scoped = db;
+  const tenantId = await requireTenantId();
+  const scoped = prismaForTenant(db, tenantId);
   return { db: scoped, tenantId };
 }

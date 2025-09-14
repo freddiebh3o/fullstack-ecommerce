@@ -1,9 +1,9 @@
 // src/app/admin/categories/page.tsx
 import Link from "next/link";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import CategoryTable from "@/components/admin/category-table";
 import ForbiddenPage from "@/app/403/page";
-import { ensureAnyPagePermission } from "@/lib/auth/guards/page";
+import { ensureAnyPagePermission, ensurePagePermission } from "@/lib/auth/guards/page";
 import { can } from "@/lib/auth/permissions";
 import AdminIndexShell from "@/components/admin/index/admin-index-shell";
 import DataToolbar from "@/components/admin/index/data-toolbar";
@@ -30,9 +30,9 @@ export default async function AdminCategoriesPage({
   // Allow users with either read or write
   const perm = await ensureAnyPagePermission(["category.read", "category.write"]);
   if (!perm.allowed) return <ForbiddenPage />;
-  const { tenantId } = perm;
+  const { db } = await tenantDb();
 
-  const mayWrite = await can("category.write", tenantId);
+  const mayWrite = (await ensurePagePermission("category.write")).allowed;
 
   // ---- Parse query (page/per/sort/dir/q) ----
   const sp = (await searchParams) ?? {};
@@ -53,7 +53,6 @@ export default async function AdminCategoriesPage({
 
   // Where clause (tenant + optional search + dates)
   const where: Prisma.CategoryWhereInput = {
-    tenantId,
     ...(q.q
       ? {
           OR: [

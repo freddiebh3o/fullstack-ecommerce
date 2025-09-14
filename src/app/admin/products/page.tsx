@@ -1,9 +1,9 @@
 // src/app/admin/products/page.tsx
 import Link from "next/link";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
 import ProductTable from "@/components/admin/product-table";
 import ForbiddenPage from "@/app/403/page";
-import { ensureAnyPagePermission } from "@/lib/auth/guards/page";
+import { ensureAnyPagePermission, ensurePagePermission } from "@/lib/auth/guards/page";
 import { can } from "@/lib/auth/permissions";
 import AdminIndexShell from "@/components/admin/index/admin-index-shell";
 import DataToolbar from "@/components/admin/index/data-toolbar";
@@ -36,9 +36,9 @@ export default async function AdminProductsListPage({
 }) {
   const perm = await ensureAnyPagePermission(["product.read", "product.write"]);
   if (!perm.allowed) return <ForbiddenPage />;
-  const { tenantId } = perm;
+  const { db } = await tenantDb();
 
-  const mayWrite = await can("product.write", tenantId);
+  const mayWrite = (await ensurePagePermission("product.write")).allowed;
 
   // ---- Parse query (page/per/sort/dir/q) ----
   const sp = await searchParams;
@@ -73,7 +73,6 @@ export default async function AdminProductsListPage({
 
   // Where clause (server-side searching)
   const where: Prisma.ProductWhereInput = {
-    tenantId,
     ...(q.q
       ? {
           OR: [
@@ -125,13 +124,11 @@ export default async function AdminProductsListPage({
   ]);
 
   const categories = await db.category.findMany({
-    where: { tenantId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
 
   const brands = await db.brand.findMany({
-    where: { tenantId },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

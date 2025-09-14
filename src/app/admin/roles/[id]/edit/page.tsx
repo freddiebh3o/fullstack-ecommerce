@@ -1,19 +1,20 @@
 // src/app/admin/roles/[id]/edit/page.tsx
 import ForbiddenPage from "@/app/403/page";
 import { ensurePagePermission } from "@/lib/auth/guards/page";
-import { db } from "@/lib/db/prisma";
+import { tenantDb } from "@/lib/db/tenant-db";
+import { db as systemDb } from "@/lib/db/prisma";
 import RoleForm from "@/components/admin/role-form";
 
 export default async function EditRolePage({ params }: { params: Promise<{ id: string }> }) {
   const perm = await ensurePagePermission("role.manage");
   if (!perm.allowed) return <ForbiddenPage />;
 
-  const { tenantId } = perm;
   const { id } = await params;
+  const { db } = await tenantDb();
 
   // Load the role tenant-scoped
   const role = await db.role.findFirst({
-    where: { id, tenantId },
+    where: { id },
     include: {
       permissions: { select: { permission: { select: { key: true } } } },
       _count: { select: { memberships: true } },
@@ -26,7 +27,7 @@ export default async function EditRolePage({ params }: { params: Promise<{ id: s
   }
 
   // Load global permission catalog for the checklist
-  const allPermissions = await db.permission.findMany({
+  const allPermissions = await systemDb.permission.findMany({
     select: { key: true, name: true },
     orderBy: { key: "asc" },
   });
