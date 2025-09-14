@@ -5,9 +5,8 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import crypto from "node:crypto";
-import { getCurrentTenantId } from "@/lib/tenant/resolve";
-import { requireApiSession } from "@/lib/auth/guards/api";
 import { error } from "@/lib/api/response";
+import { withTenantPermission } from "@/lib/auth/guards/api";
 
 const bodySchema = z.object({
   filename: z.string().min(1),
@@ -17,22 +16,7 @@ const bodySchema = z.object({
   entityId: z.string().min(1),
 });
 
-export async function POST(req: Request) {
-  const res = await requireApiSession();
-  if (!res.ok) return res.response;
-
-  const { session } = res;
-  const role = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
-
-  // Only ADMIN / SUPERADMIN at the system level may presign
-  if (role !== "ADMIN" && role !== "SUPERADMIN") {
-    const r = error(403, "FORBIDDEN", "Forbidden");
-    r.headers.set("x-deny-reason", "forbidden");
-    return r;
-  }
-
-  const tenantId = await getCurrentTenantId();
-  if (!tenantId) return error(400, "BAD_REQUEST", "No tenant selected");
+export const POST = withTenantPermission("branding.write", async (req, { tenantId }) => {
 
   const raw = await req.json();
   const normalized = {
@@ -78,8 +62,5 @@ export async function POST(req: Request) {
     .replace(/\/{2,}/g, "/")
     .replace(":/", "://");
 
-  return NextResponse.json(
-    { url, method: "PUT", headers: {}, key, publicUrl },
-    { status: 200 }
-  );
-}
+  return NextResponse.json({ url, method: "PUT", headers: {}, key, publicUrl }, { status: 200 });
+});

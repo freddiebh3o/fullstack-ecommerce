@@ -49,7 +49,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (currentTenantId) {
     const [
       prodRead, prodWrite, catRead, catWrite, brandRead, brandWrite,
-      memRead, memManage, roleManage, brandingRead, brandingWrite,
+      memRead, memManage, roleManage, brandingWrite
     ] = await Promise.all([
       can("product.read", currentTenantId),
       can("product.write", currentTenantId),
@@ -60,7 +60,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       can("member.read", currentTenantId),
       can("member.manage", currentTenantId),
       can("role.manage", currentTenantId),
-      can("branding.read", currentTenantId),
       can("branding.write", currentTenantId),
     ]);
 
@@ -69,7 +68,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     const canSeeBrands = brandRead || brandWrite;
     const canSeeMembers = memRead || memManage;
     const canSeeRoles = roleManage;
-    const canSeeBranding = brandingRead || brandingWrite;
+    const canSeeBranding = brandingWrite;
 
     const canSeeDashboard =
       canSeeProducts || canSeeCategories || canSeeBrands || canSeeMembers || canSeeRoles || canSeeBranding;
@@ -102,6 +101,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         {brandingCss ? (
           <style
             id="tenant-branding-vars"
+            nonce={nonce ?? undefined}
+            suppressHydrationWarning
             dangerouslySetInnerHTML={{ __html: brandingCss }}
           />
         ) : null}
