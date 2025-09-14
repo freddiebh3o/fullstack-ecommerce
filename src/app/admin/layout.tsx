@@ -102,7 +102,6 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         {brandingCss ? (
           <style
             id="tenant-branding-vars"
-            nonce={nonce ?? undefined} // <-- important for CSP in prod
             dangerouslySetInnerHTML={{ __html: brandingCss }}
           />
         ) : null}
