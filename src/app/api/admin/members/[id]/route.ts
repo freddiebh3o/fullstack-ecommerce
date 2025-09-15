@@ -12,7 +12,7 @@ const patchSchema = z.object({
 // Helper: can the current user assign OWNER in this tenant?
 async function canAssignOwner(db: any, tenantId: string, session: any) {
   const sysRole = (session?.user as any)?.role;
-  if (sysRole === "SUPERADMIN" || sysRole === "ADMIN") return true;
+  if (sysRole === "SUPERUSER") return true;
 
   // must be OWNER of this tenant
   const me = await db.membership.findFirst({
@@ -91,14 +91,18 @@ export const PATCH = withTenantPermission(
     });
     if (!role) return error(400, "BAD_REQUEST", "Role not found");
 
-    const updated = await db.membership.update({
+    await db.membership.updateMany({
       where: { id },
       data: { roleId: role.id },
+    });
+    const updated = await db.membership.findFirst({
+      where: { id, tenantId },
       include: {
         user: { select: { id: true, email: true, name: true } },
         role: { select: { id: true, key: true, name: true } },
       },
     });
+    if (!updated) return error(404, "NOT_FOUND", "Membership not found after update");
 
     await audit(db, tenantId, session.user.id, "member.updateRole", {
       membershipId: updated.id,
@@ -124,7 +128,7 @@ export const DELETE = withTenantPermission(
 
     await ensureNotDeletingLastOwner(db, tenantId, id);
 
-    await db.membership.delete({ where: { id } });
+    await db.membership.deleteMany({ where: { id } });
     await audit(db, tenantId, session.user.id, "member.remove", { membershipId: id });
 
     return ok({ id, deleted: true });

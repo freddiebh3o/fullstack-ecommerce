@@ -81,9 +81,9 @@ export const PATCH = withTenantPermission(
       brandId = b.id;
     }
 
-    const updated = await db.product.update({
-      where: { id }, // unique; we've verified tenant ownership
-      data: {
+    await db.product.updateMany({
+        where: { id },
+        data: {
         name: data.name.trim(),
         slug: normalizedSlug,
         priceCents: data.priceCents,
@@ -92,34 +92,32 @@ export const PATCH = withTenantPermission(
         categoryId,
         brandId,
       },
+    });
+    
+    // Refetch after update so we have images/etc.
+    const after = await db.product.findFirst({
+      where: { id, tenantId },
       include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
     });
-
     // Primary image handling (tenant-scoped)
     if (typeof data.imageUrl === "string") {
-      const primary = updated.images[0];
+      const primary = after?.images?.[0];
       if (data.imageUrl === "") {
         await db.productImage.deleteMany({ where: { productId: id, tenantId } });
       } else if (primary) {
         await db.productImage.update({
           where: { id: primary.id },
-          data: { url: data.imageUrl, alt: updated.name, sortOrder: 0 },
+          data: { url: data.imageUrl, alt: (after?.name ?? data.name), sortOrder: 0 },
         });
       } else {
         await db.productImage.create({
-          data: { tenantId, productId: id, url: data.imageUrl, alt: updated.name, sortOrder: 0 },
+          data: { tenantId, productId: id, url: data.imageUrl, alt: (after?.name ?? data.name), sortOrder: 0 },
         });
       }
     }
 
-    await audit(db, tenantId, session.user.id, "product.update", { id: updated.id, name: updated.name });
-
-    const result = await db.product.findFirst({
-      where: { id, tenantId },
-      include: { images: { orderBy: { sortOrder: "asc" } }, category: true, brand: true },
-    });
-
-    return ok(result ?? updated);
+    await audit(db, tenantId, session.user.id, "product.update", { id, name: after?.name ?? data.name });
+    return ok(after);
   }
 );
 

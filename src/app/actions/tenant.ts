@@ -32,7 +32,7 @@ export async function setCurrentTenant(tenantId: string) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) throw new Error("UNAUTHORIZED");
 
-  const isSuper = (session.user as any)?.role === "SUPERADMIN";
+  const isSuper = (session.user as any)?.role === "SUPERUSER";
   if (!isSuper) {
     const hasMembership = await db.membership.findFirst({
       where: { userId: session.user.id, tenantId },

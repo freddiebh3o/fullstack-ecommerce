@@ -82,8 +82,8 @@ export default async function AdminPage() {
     canAny(["member.read", "member.manage"], tenantId),
   ]);
 
-  // System role (Users is a system-level area for ADMIN/SUPERADMIN only)
-  const maySeeUsers = (await ensureSystemRole(["ADMIN", "SUPERADMIN"])).allowed;
+  // System role (Users is a system-level area for SUPERUSER only)
+  const maySeeUsers = (await ensureSystemRole(["SUPERUSER"])).allowed;
 
   // Fetch counts (tenant-scoped where applicable)
   const { db } = await tenantDb(); // scoped client

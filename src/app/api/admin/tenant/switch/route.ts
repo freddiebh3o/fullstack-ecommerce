@@ -13,7 +13,7 @@ export async function POST(req: Request) {
 
   const { session } = res;
   const userId = session.user?.id as string | undefined;
-  const sysRole = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
+  const sysRole = (session?.user as any)?.role as "USER" | "SUPERUSER" | undefined;
 
   if (!userId || !sysRole) {
     const r = error(401, "UNAUTHENTICATED", "You must be signed in");
@@ -36,9 +36,9 @@ export async function POST(req: Request) {
     return error(404, "NOT_FOUND", "Tenant not found");
   }
 
-  // SUPERADMIN: can switch to any tenant without membership
-  if (sysRole !== "SUPERADMIN") {
-    // Others (ADMIN/USER): must be a member of the target tenant
+  // SUPERUSER: can switch to any tenant without membership
+  if (sysRole !== "SUPERUSER") {
+    // Others (USER): must be a member of the target tenant
     const member = await db.membership.findFirst({
       where: { userId, tenantId },
       select: { id: true },

@@ -9,12 +9,12 @@ import { withSystemRole } from "@/lib/auth/guards/system";
 const bodySchema = z.object({
   email: z.string().email(),
   name: z.string().trim().optional(),
-  role: z.enum(["ADMIN", "USER", "SUPERADMIN"]).optional().default("USER"),
+  role: z.enum(["USER", "SUPERUSER"]).optional().default("USER"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-// POST /api/admin/users  (ADMIN | SUPERADMIN)
-export const POST = withSystemRole(["ADMIN", "SUPERADMIN"], async (req) => {
+// POST /api/admin/users  (SUPERUSER)
+export const POST = withSystemRole(["SUPERUSER"], async (req) => {
   const parsed = bodySchema.safeParse(await req.json());
   if (!parsed.success) return error(400, "VALIDATION", "Invalid request body", parsed.error.flatten());
 

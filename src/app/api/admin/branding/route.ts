@@ -68,7 +68,7 @@ export const PUT = withTenantPermission(
     const { light, dark, logoUrl } = parsed.data;
 
     // Load existing or start from canonical defaults, then normalize shape
-    const existing = await db.tenantBranding.findUnique({
+    const existing = await db.tenantBranding.findFirst({
       where: { tenantId },
       select: { theme: true, logoUrl: true },
     });

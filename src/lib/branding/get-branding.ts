@@ -8,7 +8,7 @@ import { coerceTheme } from "./utils";
  * Never throws — always returns a valid BrandingTheme (rich shape).
  */
 export async function getBrandingForTenant(tenantId: string): Promise<BrandingTheme> {
-  const rec = await db.tenantBranding.findUnique({
+  const rec = await db.tenantBranding.findFirst({
     where: { tenantId },
     select: { theme: true, logoUrl: true },
   });

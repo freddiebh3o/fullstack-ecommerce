@@ -58,7 +58,7 @@ export const PATCH = withTenantPermission(
     });
     if (conflict) return error(409, "CONFLICT", "Slug already exists in this tenant");
 
-    const updated = await db.brand.update({
+    await db.brand.updateMany({
       where: { id },
       data: {
         name: data.name.trim(),
@@ -68,6 +68,9 @@ export const PATCH = withTenantPermission(
         logoUrl: data.logoUrl?.trim() || null,
       },
     });
+
+    const updated = await db.brand.findFirst({ where: { id, tenantId } });
+    if (!updated) return error(404, "NOT_FOUND", "Brand not found after update");
 
     await audit(db, tenantId, session.user.id, "brand.update", {
       id: updated.id,
@@ -95,7 +98,7 @@ export const DELETE = withTenantPermission(
       return error(400, "BAD_REQUEST", "Cannot delete a brand that is used by products");
     }
 
-    await db.brand.delete({ where: { id } });
+    await db.brand.deleteMany({ where: { id } });
     await audit(db, tenantId, session.user.id, "brand.delete", { id });
 
     return ok({ id, deleted: true });

@@ -28,7 +28,7 @@ type Row = {
   id: string;
   email: string;
   name: string | null;
-  role: "ADMIN" | "USER" | "SUPERADMIN";
+  role: "USER" | "SUPERUSER";
   createdAt: Date | string;
 };
 
@@ -92,7 +92,7 @@ export default function UserTable({
                     <TableCell className="font-medium">{u.email}</TableCell>
                     <TableCell>{u.name ?? "—"}</TableCell>
                     <TableCell>
-                      {u.role === "USER" ? "Customer" : u.role === "ADMIN" ? "Admin" : "Superadmin"}
+                    {u.role === "USER" ? "Customer" : "Superuser"}
                     </TableCell>
                     <TableCell>{DATE_FMT.format(new Date(u.createdAt))}</TableCell>
                     <TableCell className="text-right">

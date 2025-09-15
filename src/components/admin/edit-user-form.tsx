@@ -15,7 +15,7 @@ import { apiFetch } from "@/lib/http/apiFetch";
 const schema = z.object({
   email: z.string().email(),
   name: z.string().optional(),
-  role: z.enum(["ADMIN", "USER", "SUPERADMIN"]),
+  role: z.enum(["USER", "SUPERUSER"]),
   password: z.string().min(8).optional(),
 });
 type FormValues = z.input<typeof schema>;
@@ -26,7 +26,7 @@ export default function EditUserForm({
   isSelf,
 }: {
   id: string;
-  initial: { email: string; name: string; role: "ADMIN" | "USER" | "SUPERADMIN" };
+  initial: { email: string; name: string; role: "USER" | "SUPERUSER" };
   isSelf: boolean;
 }) {
   const router = useRouter();
@@ -106,8 +106,7 @@ export default function EditUserForm({
                   <SelectTrigger><SelectValue placeholder="Choose role" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="USER">Customer</SelectItem>
-                    <SelectItem value="ADMIN">Admin</SelectItem>
-                    <SelectItem value="SUPERADMIN">Superadmin</SelectItem>
+                    <SelectItem value="SUPERUSER">Superuser</SelectItem>
                   </SelectContent>
                 </Select>
               </FormControl>

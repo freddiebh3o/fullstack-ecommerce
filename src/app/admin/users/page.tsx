@@ -26,8 +26,8 @@ export default async function AdminUsersPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // Only ADMIN / SUPERADMIN may view Users
-  const guard = await ensureSystemRole(["ADMIN", "SUPERADMIN"]);
+  // Only SUPERUSER may view Users
+  const guard = await ensureSystemRole(["SUPERUSER"]);
   if (!guard.allowed) return <ForbiddenPage />;
 
   const currentUserId = (guard.session.user as any)?.id ?? null;
@@ -36,8 +36,9 @@ export default async function AdminUsersPage({
   const sp = (await searchParams) ?? {};
   const q = parseIndexQuery(sp);
 
-  // Optional filters
-  const role = str(sp.role); // ADMIN | USER | SUPERADMIN
+  // Optional filters (sanitize to known values)
+  const rawRole = str(sp.role);
+  const role = rawRole && (["USER", "SUPERUSER"] as const).includes(rawRole as any) ? rawRole : undefined;
   const createdFrom = dateISO(sp.createdFrom);
   const createdTo = dateISO(sp.createdTo);
   const createdToNext =
@@ -105,8 +106,7 @@ export default async function AdminUsersPage({
               name: "role",
               value: typeof sp.role === "string" ? sp.role : "",
               options: [
-                { value: "SUPERADMIN", label: "Superadmin" },
-                { value: "ADMIN", label: "Admin" },
+                { value: "SUPERUSER", label: "Superuser" },
                 { value: "USER", label: "Customer" },
               ],
               allowEmpty: true,

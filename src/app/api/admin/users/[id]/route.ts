@@ -11,27 +11,26 @@ const paramsSchema = z.object({ id: z.string().min(1) });
 const patchSchema = z.object({
   email: z.string().email().optional(),
   name: z.string().trim().optional(),
-  role: z.enum(["ADMIN", "USER", "SUPERADMIN"]).optional(),
+  role: z.enum(["USER", "SUPERUSER"]).optional(),
   password: z.string().min(8).optional(), // if provided, reset
 });
 
-async function ensureNotDemotingLastAdmin(targetUserId: string, newRole?: "ADMIN" | "USER" | "SUPERADMIN") {
+async function ensureNotDemotingLastSuperuser(targetUserId: string, newRole?: "USER" | "SUPERUSER") {
   if (!newRole || newRole !== "USER") return;
   const target = await db.user.findUnique({ where: { id: targetUserId }, select: { role: true } });
-  if (!target || target.role !== "ADMIN") return;
-  const adminCount = await db.user.count({ where: { role: "ADMIN" } });
-  if (adminCount <= 1) throw new Error("Cannot demote the last remaining system ADMIN");
+  if (!target || target.role !== "SUPERUSER") return;
+  const count = await db.user.count({ where: { role: "SUPERUSER" } });
+  if (count <= 1) throw new Error("Cannot demote the last remaining SUPERUSER");
 }
 
-async function ensureNotDeletingLastAdmin(targetUserId: string) {
+async function ensureNotDeletingLastSuperuser(targetUserId: string) {
   const target = await db.user.findUnique({ where: { id: targetUserId }, select: { role: true } });
-  if (!target || target.role !== "ADMIN") return;
-  const adminCount = await db.user.count({ where: { role: "ADMIN" } });
-  if (adminCount <= 1) throw new Error("Cannot delete the last remaining system ADMIN");
+  if (!target || target.role !== "SUPERUSER") return;
+  const count = await db.user.count({ where: { role: "SUPERUSER" } });
+  if (count <= 1) throw new Error("Cannot delete the last remaining SUPERUSER");
 }
 
-// PATCH /api/admin/users/:id  (ADMIN | SUPERADMIN)
-export const PATCH = withSystemRole(["ADMIN", "SUPERADMIN"], async (req, ctx: SystemGuardCtx) => {
+export const PATCH = withSystemRole(["SUPERUSER"], async (req, ctx: SystemGuardCtx) => {
   const { session } = ctx;
   const url = new URL(req.url);
   const id = url.pathname.split("/").pop() || "";
@@ -44,7 +43,7 @@ export const PATCH = withSystemRole(["ADMIN", "SUPERADMIN"], async (req, ctx: Sy
   const { email, name, role, password } = parsedBody.data;
 
   try {
-    if (role) await ensureNotDemotingLastAdmin(id, role);
+    if (role) await ensureNotDemotingLastSuperuser(id, role);
 
     const data: any = {};
     if (email) data.email = email.toLowerCase();
@@ -55,7 +54,7 @@ export const PATCH = withSystemRole(["ADMIN", "SUPERADMIN"], async (req, ctx: Sy
     const user = await db.user.update({ where: { id }, data });
     return ok(user);
   } catch (e: any) {
-    if (e.message?.includes("last remaining system ADMIN")) {
+    if (e.message?.includes("last remaining SUPERUSER")) {
       return error(400, "BAD_REQUEST", e.message);
     }
     if ((e as Prisma.PrismaClientKnownRequestError).code === "P2002") {
@@ -68,8 +67,7 @@ export const PATCH = withSystemRole(["ADMIN", "SUPERADMIN"], async (req, ctx: Sy
   }
 });
 
-// DELETE /api/admin/users/:id  (ADMIN | SUPERADMIN)
-export const DELETE = withSystemRole(["ADMIN", "SUPERADMIN"], async (req, ctx: SystemGuardCtx) => {
+export const DELETE = withSystemRole(["SUPERUSER"], async (req, ctx: SystemGuardCtx) => {
   const { session } = ctx;
   const url = new URL(req.url);
   const id = url.pathname.split("/").pop() || "";
@@ -82,11 +80,11 @@ export const DELETE = withSystemRole(["ADMIN", "SUPERADMIN"], async (req, ctx: S
   }
 
   try {
-    await ensureNotDeletingLastAdmin(id);
+    await ensureNotDeletingLastSuperuser(id);
     await db.user.delete({ where: { id } });
     return ok({ id, deleted: true });
   } catch (e: any) {
-    if (e.message?.includes("last remaining system ADMIN")) {
+    if (e.message?.includes("last remaining SUPERUSER")) {
       return error(400, "BAD_REQUEST", e.message);
     }
     if ((e as Prisma.PrismaClientKnownRequestError).code === "P2025") {

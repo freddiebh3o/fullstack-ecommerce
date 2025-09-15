@@ -145,13 +145,13 @@ async function main() {
   const admin = await prisma.user.upsert({
     where: { email: "admin@example.com" },
     update: {},
-    create: { email: "admin@example.com", name: "Admin", role: "ADMIN", passwordHash: await bcrypt.hash("Admin123!", 10) },
+    create: { email: "admin@example.com", name: "Admin", role: "SUPERUSER", passwordHash: await bcrypt.hash("Admin123!", 10) },
   });
 
   const superadmin = await prisma.user.upsert({
     where: { email: "superadmin@example.com" },
     update: {},
-    create: { email: "superadmin@example.com", name: "Super Admin", role: "SUPERADMIN", passwordHash: await bcrypt.hash("SuperAdmin123!", 10) },
+    create: { email: "superadmin@example.com", name: "Super Admin", role: "SUPERUSER", passwordHash: await bcrypt.hash("SuperAdmin123!", 10) },
   });
 
   // Per-tenant demo users (system role "USER"; tenant role via Membership)

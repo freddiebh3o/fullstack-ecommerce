@@ -36,7 +36,7 @@ export async function getTenantBranding(tenantId?: string): Promise<BrandingThem
   const tid = tenantId ?? (await getCurrentTenantId());
   if (!tid) return DEFAULT_THEME;
 
-  const row = await db.tenantBranding.findUnique({
+  const row = await db.tenantBranding.findFirst({
     where: { tenantId: tid },
     select: { theme: true, logoUrl: true },
   });
@@ -62,7 +62,7 @@ export async function upsertTenantBranding(
   userId: string,
   patch: BrandingPatch
 ) {
-  const existing = await db.tenantBranding.findUnique({
+  const existing = await db.tenantBranding.findFirst({
     where: { tenantId },
     select: { theme: true, logoUrl: true },
   });
@@ -87,10 +87,12 @@ export async function upsertTenantBranding(
 
   // Persist JSON (and keep logoUrl column in sync for legacy reads)
   const row = existing
-    ? await db.tenantBranding.update({
+    ? await db.tenantBranding.updateMany({
         where: { tenantId },
         data: { theme: next as any, logoUrl: next.logoUrl },
-      })
+      }).then(() =>
+        db.tenantBranding.findFirst({ where: { tenantId } })
+      )
     : await db.tenantBranding.create({
         data: { tenantId, theme: next as any, logoUrl: next.logoUrl },
       });

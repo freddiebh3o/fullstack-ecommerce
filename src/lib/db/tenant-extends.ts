@@ -10,6 +10,27 @@ import { TENANT_SCOPED } from "./tenant-scoped";
 type Mode = "inject" | "strict";
 const MODE: Mode = (process.env.TENANT_ENFORCEMENT_MODE as Mode) ?? "inject";
 
+function normalizeUniqueWhere(unique: any) {
+  // If the unique selector is composite like { tenantId_userId: { tenantId, userId } }
+  // flatten it to a normal where { tenantId, userId } for findFirst.
+  if (!unique || typeof unique !== "object") return unique;
+  const keys = Object.keys(unique);
+  if (keys.length === 1) {
+    const k = keys[0];
+    const v = unique[k];
+    if (v && typeof v === "object") {
+      return { ...v }; // flatten
+    }
+  }
+  return unique; // simple unique like { id: '...' } stays as-is
+}
+
+function pickReturnFields(args: any) {
+  if (args?.include) return { include: args.include };
+  if (args?.select)  return { select: args.select };
+  return {};
+}
+
 const addTenantToWhere = (where: any, tenantId: string) =>
   where ? { AND: [{ tenantId }, where] } : { tenantId };
 
@@ -150,20 +171,25 @@ export function prismaForTenant(base: PrismaClient, tenantId: string): PrismaCli
         async upsert({ model, args, query }) {
           if (!TENANT_SCOPED.has(model)) return query(args);
           if (!args?.where) throw new Error("Upsert requires a `where`");
-
-          // Safe emulation: look under tenant, then update/create accordingly.
-          const found = await (base as any)[model].findFirst({
-            where: addTenantToWhere(args.where, tenantId),
-          });
+        
+          const whereForLookup = addTenantToWhere(
+            normalizeUniqueWhere(args.where),
+            tenantId
+          );
+        
+          const found = await (base as any)[model].findFirst({ where: whereForLookup });
+        
           if (found) {
-            // route update through .update (which we override safely)
             return (base as any)[model].update({
               where: { id: found.id },
               data: args.update ?? {},
+              ...pickReturnFields(args),          // <-- preserve include/select
             });
           }
+        
           return (base as any)[model].create({
             data: ensureDataTenant(args.create, tenantId),
+            ...pickReturnFields(args),            // <-- preserve include/select
           });
         },
 

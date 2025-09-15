@@ -51,10 +51,12 @@ export const PATCH = withTenantPermission(
     });
     if (conflict) return error(409, "CONFLICT", "Slug already exists in this tenant");
 
-    const updated = await db.category.update({
+    await db.category.updateMany({
       where: { id },
       data: { name: parsed.data.name, slug: normalizedSlug },
     });
+    const updated = await db.category.findFirst({ where: { id, tenantId } });
+    if (!updated) return error(404, "NOT_FOUND", "Category not found after update");
 
     await audit(db, tenantId, session.user.id, "category.update", {
       id: updated.id,
@@ -79,7 +81,7 @@ export const DELETE = withTenantPermission(
       return error(400, "BAD_REQUEST", "Cannot delete a category that is used by products");
     }
 
-    await db.category.delete({ where: { id } });
+    await db.category.deleteMany({ where: { id } })
     await audit(db, tenantId, session.user.id, "category.delete", { id });
 
     return ok({ id, deleted: true });

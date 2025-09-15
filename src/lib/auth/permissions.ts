@@ -5,7 +5,7 @@ import { db } from "@/lib/db/prisma";
 
 /**
  * Strict permission check:
- * - Only SUPERADMIN (system role) bypasses everything.
+ * - Only SUPERUSER (system role) bypasses everything.
  * - Otherwise, we look up the user's membership for the *exact* tenant
  *   and return true only if the *exact* permission key is present.
  */
@@ -13,8 +13,8 @@ export async function can(permissionKey: string, tenantId: string | null | undef
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) return false;
 
-  // System SUPERADMIN bypass (global)
-  if ((session.user as any).role === "SUPERADMIN") return true;
+  // System SUPERUSER bypass (global)
+  if ((session.user as any).role === "SUPERUSER") return true;
 
   if (!tenantId) return false;
 

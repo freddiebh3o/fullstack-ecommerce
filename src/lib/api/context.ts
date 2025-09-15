@@ -8,7 +8,7 @@ import type { PrismaClient } from "@prisma/client";
 
 /**
  * Standardizes auth + tenant resolution for Admin API routes.
- * - requires system role ADMIN or SUPERADMIN
+ * - requires system role SUPERUSER
  * - uses cookie-selected tenant (getCurrentTenantId already falls back to first membership)
  */
 export async function getApiTenantCtx(): Promise<
@@ -21,7 +21,7 @@ export async function getApiTenantCtx(): Promise<
   if (!session?.user?.id) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   }
-  if (role !== "ADMIN" && role !== "SUPERADMIN") {
+  if (role !== "SUPERUSER") {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
 

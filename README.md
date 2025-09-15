@@ -22,7 +22,7 @@ This repository mirrors a real SaaS back‑office:
 
 ### Authentication & Access
 - Credentials auth (NextAuth) with encrypted JWT sessions.
-- Global roles: `SUPERADMIN`, `ADMIN`, `USER`.
+- Global roles: `SUPERUSER`, `USER`.
 - Tenant roles: `OWNER`, `ADMIN`, `EDITOR`, `READONLY` **+ Custom Roles** (if enabled).
 
 ### Multitenancy
@@ -36,7 +36,7 @@ This repository mirrors a real SaaS back‑office:
 - **Categories**: CRUD, safeguards when in use.
 - **Brands**: CRUD, logo upload, search + pagination.
 - **Members**: invite/remove, assign roles, last‑OWNER safeguards.
-- **Users (system)**: Admin/Superadmin‑only, cannot delete self / last ADMIN.
+- **Users (system)**: SUPERUSER, cannot delete self / last ADMIN.
 - **Roles**: Create/update/delete roles **and custom roles** with checkbox permissions.
 - **Admin Branding**: per‑tenant logo + theme variables via CSS custom props.
 
@@ -93,7 +93,7 @@ export const POST = withTenantPermission("brand.write", async (req, { db, tenant
 export const GET = withAnyTenantPermission(["category.read","category.write"], async (req, ctx) => { /*...*/ });
 
 // System-admin only (outside tenant scope)
-export const DELETE = withSystemRole(["ADMIN","SUPERADMIN"], async (req, { session }) => { /*...*/ });
+export const DELETE = withSystemRole(["SUPERUSER"], async (req, { session }) => { /*...*/ });
 ```
 
 ### Validation & Errors

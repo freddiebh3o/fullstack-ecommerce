@@ -9,19 +9,19 @@ declare module "next-auth" {
       id: string;
       email?: string | null;
       name?: string | null;
-      role?: "ADMIN" | "USER" | "SUPERADMIN";
+      role?: "USER" | "SUPERUSER";
     };
     currentTenantId?: string;
   }
 
   interface User extends DefaultUser {
-    role: "ADMIN" | "USER" | "SUPERADMIN";
+    role: "USER" | "SUPERUSER";
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
-    role?: "ADMIN" | "USER" | "SUPERADMIN";
+    role?: "USER" | "SUPERUSER";
     sub?: string;
     currentTenantId?: string;
   }

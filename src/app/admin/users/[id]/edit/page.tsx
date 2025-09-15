@@ -6,7 +6,7 @@ import { ensureSystemRole } from "@/lib/auth/guards/system";
 import EditUserForm from "@/components/admin/edit-user-form";
 
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
-  const guard = await ensureSystemRole(["ADMIN", "SUPERADMIN"]);
+  const guard = await ensureSystemRole(["SUPERUSER"]);
   if (!guard.allowed) return <ForbiddenPage />;
 
   const { id } = await params; // Next 15 async params

@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth/nextauth";
 import { db } from "@/lib/db/prisma";
 import { error } from "@/lib/api/response";
 
-export type SystemRole = "ADMIN" | "SUPERADMIN" | "USER";
+export type SystemRole = "USER" | "SUPERUSER";
 
 export type SystemGuardCtx = {
   db: typeof db;
@@ -12,7 +12,7 @@ export type SystemGuardCtx = {
 };
 
 export function withSystemRole(
-  roles: Array<Extract<SystemRole, "ADMIN" | "SUPERADMIN">>,
+  roles: Array<Extract<SystemRole, "SUPERUSER">>,
   handler: (req: Request, ctx: SystemGuardCtx) => Promise<Response> | Response
 ) {
   return async function (req: Request) {
@@ -26,7 +26,7 @@ export function withSystemRole(
   };
 }
 
-export async function ensureSystemRole(roles: Array<Extract<SystemRole, "ADMIN" | "SUPERADMIN">>) {
+export async function ensureSystemRole(roles: Array<Extract<SystemRole, "SUPERUSER">>) {
   const session = await getServerSession(authOptions);
   if (!session) return { allowed: false as const, reason: "unauthenticated" as const, session: null as any };
   const sysRole = (session.user as any)?.role as SystemRole | undefined;

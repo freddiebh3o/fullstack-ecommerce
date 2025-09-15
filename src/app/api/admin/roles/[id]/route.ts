@@ -76,10 +76,8 @@ export const PATCH = withTenantPermission(
 
       try {
         const updated = await db.$transaction(async (tx) => {
-          const base = await tx.role.update({
-            where: { id },
-            data: updates,
-          });
+          await tx.role.updateMany({ where: { id }, data: updates });
+          const base = await tx.role.findFirst({ where: { id, tenantId } });
           await tx.permissionAssignment.deleteMany({ where: { roleId: id } });
           await tx.permissionAssignment.createMany({
             data: perms.map((p) => ({ roleId: id, permissionId: p.id })),
@@ -95,7 +93,7 @@ export const PATCH = withTenantPermission(
           permissionKeys: keys,
         });
 
-        return ok({ id: updated.id });
+        return ok({ id });;
       } catch (e) {
         console.error("[roles.PATCH] error", e);
         return error(500, "SERVER_ERROR", "Failed to update role");
@@ -103,12 +101,13 @@ export const PATCH = withTenantPermission(
     }
 
     // Only name/description change
-    const updated = await db.role.update({ where: { id }, data: updates });
+    await db.role.updateMany({ where: { id }, data: updates });
+    const updated = await db.role.findFirst({ where: { id, tenantId } });
     await audit(db, tenantId, session.user.id, "role.update", {
       roleId: id,
       changed: updates,
     });
-    return ok({ id: updated.id });
+    return ok({ id });
   }
 );
 
@@ -140,7 +139,7 @@ export const DELETE = withTenantPermission(
 
     try {
       await db.permissionAssignment.deleteMany({ where: { roleId: id } });
-      await db.role.delete({ where: { id } });
+      await db.role.deleteMany({ where: { id } });
 
       await audit(db, tenantId, session.user.id, "role.delete", { roleId: id });
 

@@ -10,15 +10,15 @@ const TENANT_COOKIE = "x-current-tenant-id";
 /**
  * Resolve the *valid* current tenant for the logged-in user.
  * Order:
- *  1) cookie(x-current-tenant-id) if it exists *and* is valid for this user (or SUPERADMIN)
+ *  1) cookie(x-current-tenant-id) if it exists *and* is valid for this user (or SUPERUSER)
  *  2) first membership’s tenant
- *  3) (SUPERADMIN only) first tenant in system
+ *  3) (SUPERUSER only) first tenant in system
  *  4) null
  */
 export async function getCurrentTenantId(): Promise<string | null> {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id ?? null;
-  const isSuper = (session?.user as any)?.role === "SUPERADMIN";
+  const isSuper = (session?.user as any)?.role === "SUPERUSER";
   const cookieStore = await cookies();
   // 1) cookie
   const cookieTenantId = cookieStore.get(TENANT_COOKIE)?.value ?? null;
@@ -45,7 +45,7 @@ export async function getCurrentTenantId(): Promise<string | null> {
     if (m?.tenantId) return m.tenantId;
   }
 
-  // 3) superadmin fallback: first tenant in system
+  // 3) superuser fallback: first tenant in system
   if (isSuper) {
     const t = await db.tenant.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } });
     if (t?.id) return t.id;

@@ -15,7 +15,7 @@ const postSchema = z.object({
 // Helper: can the current user assign OWNER in this tenant?
 async function canAssignOwner(db: any, tenantId: string, session: any) {
   const sysRole = (session?.user as any)?.role;
-  if (sysRole === "SUPERADMIN" || sysRole === "ADMIN") return true;
+  if (sysRole === "SUPERUSER") return true;
 
   // must be OWNER of this tenant
   const me = await db.membership.findFirst({

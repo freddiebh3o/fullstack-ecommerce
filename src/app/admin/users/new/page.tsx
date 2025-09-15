@@ -4,7 +4,7 @@ import { ensureSystemRole } from "@/lib/auth/guards/system";
 import NewUserForm from "@/components/admin/new-user-form";
 
 export default async function NewUserPage() {
-  const guard = await ensureSystemRole(["ADMIN", "SUPERADMIN"]);
+  const guard = await ensureSystemRole(["SUPERUSER"]);
   if (!guard.allowed) return <ForbiddenPage />;
 
   return (

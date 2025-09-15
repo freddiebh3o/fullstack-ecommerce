@@ -19,19 +19,18 @@ import { getCspNonce } from "@/lib/security/get-csp-nonce";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const session = await getServerSession(authOptions);
-  const sysRole = (session?.user as any)?.role as "USER" | "ADMIN" | "SUPERADMIN" | undefined;
-  const isSuper = sysRole === "SUPERADMIN" || sysRole === "ADMIN";
+  const sysRole = (session?.user as any)?.role as "USER" | "SUPERUSER" | undefined;
+  const isSuper = sysRole === "SUPERUSER";
 
-  const tenants =
-    isSuper && sysRole === "SUPERADMIN"
-      ? await systemDb.tenant.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })
-      : (
-          await systemDb.membership.findMany({
-            where: { userId: session?.user?.id ?? "" },
-            select: { tenantId: true, tenant: { select: { name: true } } },
-            orderBy: { createdAt: "asc" },
-          })
-        ).map((m) => ({ id: m.tenantId, name: m.tenant.name }));
+  const tenants = isSuper
+    ? await systemDb.tenant.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })
+    : (
+        await systemDb.membership.findMany({
+          where: { userId: session?.user?.id ?? "" },
+          select: { tenantId: true, tenant: { select: { name: true } } },
+          orderBy: { createdAt: "asc" },
+        })
+      ).map((m) => ({ id: m.tenantId, name: m.tenant.name }));
 
   const currentTenantId = await getCurrentTenantId();
 
