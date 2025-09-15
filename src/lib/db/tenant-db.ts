@@ -1,5 +1,5 @@
 // src/lib/db/tenant-db.ts
-import { db } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
 import { requireTenantId } from "@/lib/tenant/resolve";
 import { prismaForTenant } from "./tenant-extends";
 
@@ -9,6 +9,6 @@ import { prismaForTenant } from "./tenant-extends";
  */
 export async function tenantDb() {
   const tenantId = await requireTenantId();
-  const scoped = prismaForTenant(db, tenantId);
+  const scoped = prismaForTenant(__rawDb, tenantId);
   return { db: scoped, tenantId };
 }

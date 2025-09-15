@@ -1,5 +1,6 @@
 // src/lib/tenant/bootstrap.ts
-import { db } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
+import { prismaForTenant } from "@/lib/db/tenant-extends";
 import { DEFAULT_THEME } from "@/lib/branding/defaults";
 
 const BUILTIN_ROLES = [
@@ -10,31 +11,26 @@ const BUILTIN_ROLES = [
 ];
 
 export async function bootstrapTenant(tenantId: string, ownerUserId?: string) {
-  // 1) Ensure built-in roles (existing code)
+  const tdb = prismaForTenant(__rawDb, tenantId);
+
   for (const r of BUILTIN_ROLES) {
-    await db.role.upsert({
+    await tdb.role.upsert({
       where: { tenantId_key: { tenantId, key: r.key as any } },
       update: { name: r.name, description: r.description, builtin: true },
       create: { tenantId, key: r.key as any, name: r.name, description: r.description, builtin: true },
     });
   }
 
-  // 2) Ensure branding row exists (NEW)
-  await db.tenantBranding.upsert({
+  await tdb.tenantBranding.upsert({
     where: { tenantId },
-    update: {}, // no-op; we don’t overwrite existing settings in bootstrap
-    create: {
-      tenantId,
-      logoUrl: DEFAULT_THEME.logoUrl ?? null,
-      theme: DEFAULT_THEME,
-    },
+    update: {},
+    create: { tenantId, logoUrl: DEFAULT_THEME.logoUrl ?? null, theme: DEFAULT_THEME },
   });
 
-  // 3) Ensure owner membership (existing)
   if (ownerUserId) {
-    const ownerRole = await db.role.findFirst({ where: { tenantId, key: "OWNER" }, select: { id: true } });
+    const ownerRole = await tdb.role.findFirst({ where: { key: "OWNER" }, select: { id: true } });
     if (ownerRole) {
-      await db.membership.upsert({
+      await tdb.membership.upsert({
         where: { tenantId_userId: { tenantId, userId: ownerUserId } },
         update: { roleId: ownerRole.id },
         create: { tenantId, userId: ownerUserId, roleId: ownerRole.id },

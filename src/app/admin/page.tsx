@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth";
 import { tenantDb } from "@/lib/db/tenant-db";
-import { db as systemDb } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
 import { getCurrentTenantId } from "@/lib/tenant/resolve";
 import { canAny } from "@/lib/auth/permissions";
 import { ensureSystemRole } from "@/lib/auth/guards/system";
@@ -92,7 +92,7 @@ export default async function AdminPage() {
     canCategories ? db.category.count({ where: {} }) : Promise.resolve(null),
     canBrands ? db.brand.count({ where: {} }) : Promise.resolve(null),
     canMembers ? db.membership.count({ where: {} }) : Promise.resolve(null),
-    maySeeUsers ? systemDb.user.count() : Promise.resolve(null), // system-wide
+    maySeeUsers ? __rawDb.user.count() : Promise.resolve(null), // system-wide
   ]);
 
   return (

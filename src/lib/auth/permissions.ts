@@ -1,13 +1,14 @@
 // src/lib/auth/permissions.ts
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth";
-import { db } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
+import { prismaForTenant } from "@/lib/db/tenant-extends";
 
 /**
  * Strict permission check:
- * - Only SUPERUSER (system role) bypasses everything.
- * - Otherwise, we look up the user's membership for the *exact* tenant
- *   and return true only if the *exact* permission key is present.
+ * - SUPERUSER bypasses everything.
+ * - Otherwise, look up the user's membership *in the given tenant*
+ *   and check for an exact permission key.
  */
 export async function can(permissionKey: string, tenantId: string | null | undefined) {
   const session = await getServerSession(authOptions);
@@ -18,15 +19,16 @@ export async function can(permissionKey: string, tenantId: string | null | undef
 
   if (!tenantId) return false;
 
+  // 🔑 TENANT-SCOPED client for this tenant id
+  const tdb = prismaForTenant(__rawDb, tenantId);
+
   // Fetch the permission keys attached to the user's role in this tenant
-  const membership = await db.membership.findFirst({
-    where: { userId: session.user.id, tenantId },
+  const membership = await tdb.membership.findFirst({
+    where: { userId: session.user.id },
     select: {
       role: {
         select: {
-          permissions: {
-            select: { permission: { select: { key: true } } },
-          },
+          permissions: { select: { permission: { select: { key: true } } } },
         },
       },
     },
@@ -36,13 +38,6 @@ export async function can(permissionKey: string, tenantId: string | null | undef
     (membership?.role?.permissions ?? []).map((p) => p.permission.key)
   );
 
-  // TEMP: debug log to verify what's actually granted
-  console.log("[can] userId:", session.user.id,
-              "tenantId:", tenantId,
-              "checking:", permissionKey,
-              "granted:", Array.from(keys));
-
-  // STRICT exact match (no prefix/suffix/wildcard matching)
   return keys.has(permissionKey);
 }
 

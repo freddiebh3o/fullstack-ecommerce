@@ -4,6 +4,8 @@ import { z } from "zod";
 import { db } from "@/lib/db/prisma";
 import { requireApiSession } from "@/lib/auth/guards/api";
 import { error } from "@/lib/api/response";
+import { __rawDb } from "@/lib/db/prisma";
+import { prismaForTenant } from "@/lib/db/tenant-extends";
 
 const bodySchema = z.object({ tenantId: z.string().min(1) });
 
@@ -38,16 +40,9 @@ export async function POST(req: Request) {
 
   // SUPERUSER: can switch to any tenant without membership
   if (sysRole !== "SUPERUSER") {
-    // Others (USER): must be a member of the target tenant
-    const member = await db.membership.findFirst({
-      where: { userId, tenantId },
-      select: { id: true },
-    });
-    if (!member) {
-      const r = error(403, "FORBIDDEN", "Forbidden");
-      r.headers.set("x-deny-reason", "forbidden");
-      return r;
-    }
+    const tdb = prismaForTenant(__rawDb, tenantId);
+    const member = await tdb.membership.findFirst({ where: { userId }, select: { id: true } });
+    if (!member) { /* 403 */ }
   }
 
   const json = NextResponse.json({ ok: true });

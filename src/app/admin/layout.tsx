@@ -7,7 +7,7 @@ import AdminUserMenu from "@/components/admin/admin-user-menu";
 import AdminThemeProvider from "@/components/theme/admin-theme-provider";
 import ThemeToggle from "@/components/theme/theme-toggle";
 import { ToastProvider } from "@/components/ui/toast-provider";
-import { db as systemDb } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
 import TenantSwitcher from "@/components/admin/tenant-switcher";
 import TenantCookieGuard from "@/components/admin/tenant-cookie-guard";
 import { getCurrentTenantId } from "@/lib/tenant/resolve";
@@ -23,9 +23,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const isSuper = sysRole === "SUPERUSER";
 
   const tenants = isSuper
-    ? await systemDb.tenant.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })
+    ? await __rawDb.tenant.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } })
     : (
-        await systemDb.membership.findMany({
+        await __rawDb.membership.findMany({
           where: { userId: session?.user?.id ?? "" },
           select: { tenantId: true, tenant: { select: { name: true } } },
           orderBy: { createdAt: "asc" },

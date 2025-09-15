@@ -1,6 +1,7 @@
 // src/lib/tenant/branding.ts
 import "server-only";
-import { db } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
+import { prismaForTenant } from "@/lib/db/tenant-extends";
 import { getCurrentTenantId } from "@/lib/tenant/resolve";
 import { audit } from "@/lib/audit/audit";
 import { DEFAULT_THEME, type BrandingTheme, type ThemePalette } from "@/lib/branding/defaults";
@@ -36,8 +37,8 @@ export async function getTenantBranding(tenantId?: string): Promise<BrandingThem
   const tid = tenantId ?? (await getCurrentTenantId());
   if (!tid) return DEFAULT_THEME;
 
-  const row = await db.tenantBranding.findFirst({
-    where: { tenantId: tid },
+  const tdb = prismaForTenant(__rawDb, tid);
+  const row = await tdb.tenantBranding.findFirst({
     select: { theme: true, logoUrl: true },
   });
 
@@ -62,8 +63,9 @@ export async function upsertTenantBranding(
   userId: string,
   patch: BrandingPatch
 ) {
-  const existing = await db.tenantBranding.findFirst({
-    where: { tenantId },
+  const tdb = prismaForTenant(__rawDb, tenantId);
+
+  const existing = await tdb.tenantBranding.findFirst({
     select: { theme: true, logoUrl: true },
   });
 
@@ -79,24 +81,20 @@ export async function upsertTenantBranding(
     : current.dark;
 
   const next: BrandingTheme = {
-    metaVersion: current.metaVersion ?? DEFAULT_THEME.metaVersion, 
+    metaVersion: current.metaVersion ?? DEFAULT_THEME.metaVersion,
     logoUrl: patch.logoUrl !== undefined ? patch.logoUrl : current.logoUrl,
     light: nextLight,
     dark: nextDark,
   };
 
-  // Persist JSON (and keep logoUrl column in sync for legacy reads)
-  const row = existing
-    ? await db.tenantBranding.updateMany({
-        where: { tenantId },
-        data: { theme: next as any, logoUrl: next.logoUrl },
-      }).then(() =>
-        db.tenantBranding.findFirst({ where: { tenantId } })
-      )
-    : await db.tenantBranding.create({
-        data: { tenantId, theme: next as any, logoUrl: next.logoUrl },
-      });
+  // Prefer upsert keyed on tenantId; include tenantId in create to satisfy TS
+  const row = await tdb.tenantBranding.upsert({
+    where: { tenantId }, // assumes a unique constraint on tenantId
+    update: { theme: next as any, logoUrl: next.logoUrl },
+    create: { tenantId, theme: next as any, logoUrl: next.logoUrl },
+    select: { theme: true, logoUrl: true },
+  });
 
-  await audit(db, tenantId, userId, "branding.upsert", { changed: patch });
+  await audit(tdb, tenantId, userId, "branding.upsert", { changed: patch });
   return row;
 }

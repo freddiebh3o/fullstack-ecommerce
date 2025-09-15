@@ -1,12 +1,22 @@
 // src/lib/audit/audit.ts
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+
+/**
+ * Narrow shape we need from a Prisma-like client:
+ * anything that exposes auditLog.create(...)
+ */
+type AuditClientLike = {
+  auditLog: {
+    create: (args: Prisma.AuditLogCreateArgs) => Promise<unknown>;
+  };
+};
 
 /**
  * Lightweight, safe audit helper.
  * Skips write when tenantId or userId is missing to avoid FK errors in dev.
  */
 export async function audit(
-  db: PrismaClient,
+  db: AuditClientLike,
   tenantId: string | null | undefined,
   userId: string | null | undefined,
   action: string,
@@ -20,7 +30,15 @@ export async function audit(
   }
 
   try {
-    await db.auditLog.create({ data: { tenantId, userId, action, meta: meta as any } });
+    await db.auditLog.create({
+      data: {
+        tenantId,
+        userId,
+        action,
+        // If your schema uses JSON, Prisma.InputJsonValue is ideal; cast keeps it flexible here.
+        meta: meta as any,
+      },
+    });
   } catch (e) {
     // Never block the request because of audit; just warn.
     console.warn("[audit failed]", e);

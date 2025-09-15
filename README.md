@@ -666,10 +666,10 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [x] Tenant members CRUD (list, add, edit role, remove).  
 - [x] Owners/Admins can promote/demote members.  
 - [x] Safeguards: last OWNER cannot be deleted/demoted.  
-- [x] Role assignment limited: only OWNERS, ADMIN, SUPERADMIN may grant `OWNER`.  
+- [x] Role assignment limited: only OWNERS, SUPERUSER may grant `OWNER`.  
 
 #### Epic: Users (System-level)
-- [x] Restricted to global `ADMIN` / `SUPERADMIN`.  
+- [x] Restricted to global `SUPERUSER`.  
 - [x] List, create, edit, delete system users.  
 - [x] Safeguards: cannot delete self, cannot demote last system ADMIN.  
 
@@ -704,7 +704,7 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 #### Epic: Custom Roles & Permissions
 
-**Scope:** Allow tenant OWNER/ADMIN users (and system-level Admin/Superadmin) to define custom roles with fine-grained permissions, beyond the default seeded roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).
+**Scope:** Allow tenant OWNER/ADMIN users (and system-level SUPERUSER) to define custom roles with fine-grained permissions, beyond the default seeded roles (`OWNER`, `ADMIN`, `EDITOR`, `READONLY`).
 
 **Features (RBAC: OWNER/ADMIN/system only)**  
 - [x] Add `CustomRole` model linked to tenant.  
@@ -717,7 +717,7 @@ This section tracks which larger feature areas (Epics) have already been integra
 - [x] Safeguards:  
   - [x] Cannot remove all access (at least one permission required).  
   - [x] Last `OWNER` safeguard still applies.  
-  - [x] System Admin/Superadmin can always override.  
+  - [x] System SUPERUSER can always override.  
 - [x] Audit logs for role creation, update, and assignment.  
 - [x] (Optional later) Role cloning — copy permissions from an existing role..  
 
@@ -738,376 +738,163 @@ This section tracks which larger feature areas (Epics) have already been integra
 
 ### [P1 Fix all errors on build]
 
-### [P1] Epic: CSRF, CORS & Security Headers
-**Scope:** Prevent cross-site attacks and tighten browser posture.  
-**📍 Blast radius:** **Global** — middleware + **all mutating routes** and any client that performs POST/PUT/PATCH/DELETE.  
-**🧭 Complexity (t-shirt):** **M** (straightforward, but touches many handlers)  
-**🔀 Parallelizable:** High (headers/CSP in middleware; CSRF token plumbing in parallel across forms)  
-**RBAC:** N/A (framework-level).
+---
 
-- [x] Double-submit **CSRF** token for all mutations: `csrf` cookie + `x-csrf-token` header.
-  - _Why:_ Cookie-backed sessions are CSRF-prone; token blocks cross-site form/posts.
-  - _Replaces:_ No CSRF defense today (not production-safe).
-- [x] Strict **Origin/Referer** checks on `POST/PUT/PATCH/DELETE`.
-  - _Why:_ Secondary guard if CSRF token leaks; rejects cross-origin mutations.
-  - _Replaces:_ No origin validation today.
-- [x] Locked-down **CORS**: deny all except app origin; no credentials for public GET unless required.
-  - _Why:_ Stops unauth origins from calling APIs with creds.
-  - _Replaces:_ Implicit/loose CORS behavior.
-- [x] Global security headers via middleware: CSP (script/img/connect/frame), `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors`.
-  - _Why:_ Mitigates XSS, clickjacking, data exfiltration; enforces allowed sources (e.g., S3/LocalStack).
-  - _Replaces:_ Default headers (too permissive for prod).
-- [ ] FOUND AN ISSUE WITH CORS BLOCKING IMAGES ON THE BRAND PAGE. PROBABLY BECAUSE THEY ARE COMING FROM A RANDOM WEBSITE WHICH IS BEING BLOCKED.
-- [ ] Unit/integration tests (expected rejections + good path).
-  - _Why:_ Prevent regressions on future routes.
-  - _Replaces:_ Ad-hoc manual validation.
+## ✅ Must-Have Epics (Blockers Before Any Real Users)
 
-**💰 Cost:** none.
+### 1 Tenant Isolation (App Layer)
+**Goal:** No query escapes tenant scope at the app layer.
+
+**What’s done and verified**
+- **Strict mode enabled in dev** (`TENANT_ENFORCEMENT_MODE=strict`).
+- **Global `db` guarded**: any tenant-scoped model call via the global client throws in strict mode.
+- **Tenant-scoped client auto-injects `tenantId`** (cross-tenant reads blocked even by ID).
+- **404 semantics upheld** (route patterns rely on tenant-scoped fetch; existence doesn’t leak).
+
+**“Done means” satisfied**
+- Tenant-scoped CRUD paths verified locally with strict mode on (scripts below).
+- Code search + runtime guard ensure no unscoped reads/writes remain (WIP pages will throw until wired).
 
 ---
 
-### [P1] Epic: Test Suite (Unit + Security)
-**📍 Blast radius:** **Global** — adds tests across modules; minimal production code churn.  
-**🧭 Complexity (t-shirt):** **L** (breadth, not difficulty)  
-**🔀 Parallelizable:** Very high (by module/suite)  
-**RBAC:** N/A.
+### 2 CSRF, CORS & Security Headers (Enforced)
+**Goal:** Block cross-site mutations and lock network posture.
+- [ ] In API guard wrappers, **require** Origin/Referer on `POST/PUT/PATCH/DELETE`.
+- [ ] Use **double-submit CSRF**: set `csrf` cookie on GET; require `x-csrf-token` on mutations.
+- [ ] CORS: **deny by default**; allow only your app origin(s); send credentials only when needed.
+- [ ] CSP: allow only required hosts for `script/img/connect/frame`. Add S3/LocalStack origins explicitly.
+- [ ] **HSTS** header (enable once served over HTTPS): `max-age=31536000; includeSubDomains; preload`.
 
-- [ ] **Unit:** validators, guards, slug rules, helpers (`ok/error`, perms).
-  - _Why:_ Fast feedback on logic; prevents regressions.
-  - _Replaces:_ Sparse/no unit tests.
-- [ ] **Security:** CSRF failures, rate limits, upload spoofing, over-long inputs.
-  - _Why:_ Keeps defenses intact over time.
-  - _Replaces:_ None.
-- [ ] Coverage thresholds per folder; CI summary artifact.
-  - _Why:_ Keeps quality from drifting.
-  - _Replaces:_ No objective target.
-
-**💰 Cost:** none.
+**Done means:**
+- Mutations fail with `403` without a valid Origin **and** CSRF token.
+- No unexpected third-party hosts needed in CSP; images/uploads still work with allow-list.
 
 ---
 
-### [P1] Epic: Tenant Isolation Enforcement
-**Scope:** Defense-in-depth so no query escapes tenant scope.  
-**📍 Blast radius:** **Global** — Prisma client extension, **most data access**; optional DB migrations for RLS.  
-**🧭 Complexity (t-shirt):** **L** (⬆ to **XL** if adopting full DB RLS now)  
-**🔀 Parallelizable:** Medium (Prisma `$extends` + tests first; RLS later behind a flag)  
-**RBAC:** Existing.
+### 3 Login Rate Limiting (Auth Throttling)
+**Goal:** Throttle credential stuffing and brute force.
+- [ ] Add in-memory (dev) or Redis store for rate limits (per IP + per email).
+- [ ] Backoff after ~5 failed attempts / 10 minutes; friendly error for locked accounts.
+- [ ] Log lockout events (include `requestId`, `userId/email`, IP).
 
-- [ ] Prisma `$extends` that **auto-injects** `{ tenantId }` for scoped models; throw if missing.
-  - _Why:_ Prevents “forgot to add tenantId” bugs.
-  - _Replaces:_ Manual scoping (easy to miss in new code).
-- [ ] Disallow unscoped reads/writes in shared models (unit tests to enforce).
-  - _Why:_ Test gate catches regressions early.
-  - _Replaces:_ Informal discipline only.
-- [ ] (Optional Advanced) DB-level **RLS** policies; set `app.tenant` per request via Prisma raw.
-  - _Why:_ DB hard barrier; even missed filters won’t leak.
-  - _Replaces:_ App-only isolation (good, but not bulletproof).
-- [ ] “Cross-tenant id” test suite (must return **404**, not 403).
-  - _Why:_ Avoids existence leaks; codifies the pattern.
-  - _Replaces:_ Ad-hoc checks.
-
-**💰 Cost:** none.
+**Done means:**
+- Repeated bad logins are throttled; logs show lockouts; successful logins reset counters.
 
 ---
 
-### [P1] Epic: Observability & Error Handling
-**Scope:** Understand what’s happening and fail gracefully.  
-**📍 Blast radius:** **Global** — middleware, API error handling, shared logger; light UI changes for boundaries/toasts.  
-**🧭 Complexity (t-shirt):** **M**  
-**🔀 Parallelizable:** High (server logging/error envelope in parallel with UI boundaries)  
-**RBAC:** N/A.
+### 4 Session & Auth Hardening (Phase A)
+**Goal:** Strong cookie/session defaults and sane password policy.
+- [ ] Cookies: `httpOnly`, `secure` in prod, `sameSite` appropriate, short `maxAge`, rotate on sign-in.
+- [ ] Password policy (server-side): minimum length, basic complexity, reject common/breached list (local list acceptable).
+- [ ] Disable verbose auth errors (avoid user enumeration).
 
-- [ ] Structured logger (`pino`) with redaction; include `requestId`, `userId`, `tenantId`, latency.
-  - _Why:_ Queryable logs; avoid PII leakage.
-  - _Replaces:_ `console.log`-style output.
-- [ ] Request-ID middleware; propagate via headers & context.
-  - _Why:_ Correlate client ↔ server ↔ audit entries.
-  - _Replaces:_ No correlation id.
-- [ ] Central error handler: map exceptions → consistent `error(code,message,details)`.
-  - _Why:_ Stable contract to clients; easier debugging.
-  - _Replaces:_ Mixed ad-hoc error responses.
-- [ ] UI error boundaries + user-friendly toasts across forms/tables.
-  - _Why:_ Avoid blank screens; improve recovery.
-  - _Replaces:_ Occasional `alert()` or default boundaries.
-
-**💰 Cost:** optional error tracking SaaS later; free tiers exist.
+**Done means:**
+- Cookie settings differ between dev/prod correctly; weak passwords rejected; login errors are generic.
 
 ---
 
+### 5 Storage Posture: S3 Bucket Policy (No Public ACLs)
+**Goal:** Centralized, least-privilege public access.
+- [ ] **Remove** `ACL: public-read` from uploads; keep objects private by default.
+- [ ] Add a **bucket policy** that allows `s3:GetObject` only for a public prefix (e.g., `tenant-*/public/*`).
+- [ ] (Optional) Block Public ACLs on the bucket; presigned PUTs limited to tenant prefix and content-type/size caps.
 
-### [P1] Epic: Idempotency & Transactional Integrity
-**Scope:** Prevent duplicate writes and maintain invariants.  
-**📍 Blast radius:** **Wide** — **most create endpoints**; adds a small table & transactions; moderate refactors in write paths.  
-**🧭 Complexity (t-shirt):** **M/L** (depends on number of create flows)  
-**🔀 Parallelizable:** Medium (idempotency + transactions can ship by module)  
-**RBAC:** Existing.
-
-- [ ] `Idempotency-Key` header for create endpoints; `IdempotencyKey` table (key, route, responseHash, TTL).
-  - _Why:_ Network retries won’t duplicate records/charges.
-  - _Replaces:_ Non-idempotent POST creates.
-- [ ] Interactive transactions for multi-step invariants (e.g., last OWNER checks + update).
-  - _Why:_ All-or-nothing correctness; avoids partial writes.
-  - _Replaces:_ Sequential writes without txn.
-- [ ] Optimistic concurrency: conditional updates on `updatedAt`/`version`.
-  - _Why:_ Prevent lost updates on concurrent edits.
-  - _Replaces:_ Blind updates.
-
-**💰 Cost:** none.
+**Done means:**
+- Public objects are readable via bucket policy; objects default private; presign flow unchanged for clients.
 
 ---
 
-### [P2] Epic: Session & Auth Hardening (repo-only) — **Supersedes “Activity timeouts”**
-**Scope:** Strong sessions, verified accounts, optional 2FA, lockouts.  
-**📍 Blast radius:** **Moderate** — auth routes, session config, some UI; can be phased.  
-**🧭 Complexity (t-shirt):** **L** overall (Phase A **M**, Phase B **M**)  
-**🔀 Parallelizable:** Medium (flows are cohesive)  
-**RBAC:** Public (auth flows) + existing roles.
+### 6 Operational Safety (Limits & Errors)
+**Goal:** Keep the surface area safe at small scale.
+- [ ] Pagination caps (`take <= N`) on all list endpoints; stable sorting.
+- [ ] JSON payload size limits on API routes.
+- [ ] Consistent error envelope; no stack traces or internal details in responses.
 
-- **Phase A (no-cost, do now):**
-  - [ ] Enforce strict cookie/session config (httpOnly, secure in prod, `sameSite`, short `maxAge`, rotation on sign-in).
-    - _Why:_ Reduces theft/replay risk; enforces secure defaults.
-    - _Replaces:_ Dev-grade defaults.
-  - [ ] Password policy via Zod (min length, char classes, breach block via local list).
-    - _Why:_ Stops trivial passwords now; HIBP hash check can be added later.
-    - _Replaces:_ Weak/absent server-side policy.
-  - [ ] Optional **TOTP 2FA** + backup codes (no SMS).
-    - _Why:_ Big uplift vs credential stuffing; free.
-    - _Replaces:_ Single-factor logins only.
-  - [ ] Brute-force login **lockout** integrated with rate limit backoff.
-    - _Why:_ Throttle attacks; UX explains lockouts.
-    - _Replaces:_ Unlimited attempts.
-
-- **Phase B (costed, later):**
-  - [ ] Email verification flow: `/api/auth/verify-email` + hashed single-use tokens (TTL).
-    - _Why:_ Prevents account takeovers; common requirement.
-    - _Replaces:_ No verification.
-  - [ ] Password reset flow: request/reset endpoints + hashed tokens; audit events.
-    - _Why:_ Essential account recovery.
-    - _Replaces:_ No reset flow.
-
-**💰 Cost:** Phase A: none. Phase B: transactional email ~$15–$50/mo when you’re ready.
+**Done means:**
+- Large queries don’t explode memory; errors are uniform; logs (not clients) contain stack traces.
 
 ---
 
-### [P2] Epic: Rate Limiting & Abuse Controls
-**Scope:** Throttle sensitive endpoints to reduce brute-force & scraping.  
-**📍 Blast radius:** **Wide** — middleware touchpoint + **auth and admin routes**; low refactor.  
-**🧭 Complexity (t-shirt):** **M**  
-**🔀 Parallelizable:** High (per-endpoint policies roll out incrementally)  
-**RBAC:** N/A.
+### 7 Dependency & Config Hygiene
+**Goal:** Avoid known-vuln deps and config drift.
+- [ ] Enable Dependabot/Renovate for npm updates (weekly).
+- [ ] CI step: `audit` fails on high/critical vulns (prod deps).
+- [ ] Strict `.env` validation (Zod); `.env.example` kept in sync.
 
-- [ ] Lightweight rate-limit lib (`src/lib/security/ratelimit.ts`) with pluggable store.
-  - _Why:_ Centralizes throttling; dev in-memory, prod Redis later.
-  - _Replaces:_ No systematic throttling.
-- [ ] Limits for: login, reset, verify, sign-up (if added), `/api/admin/*` mutations.
-  - _Why:_ Most abused paths; protects state & email reputation.
-  - _Replaces:_ No endpoint-specific policies.
-- [ ] Per-IP + per-account keys; exponential backoff; optional CAPTCHA gate on high failure rate.
-  - _Why:_ Defends against distributed & targeted attacks.
-  - _Replaces:_ None.
-
-**💰 Cost:** none now (in-memory). Later Redis ~$0–$10/mo; CAPTCHA can be free.
+**Done means:**
+- PRs auto-open for updates; CI blocks risky vulns; app boot fails fast on bad config.
 
 ---
 
-### [P2] Epic: Developer Experience & Config Safety
-**Scope:** Reduce mistakes and speed up contributions.  
-**📍 Blast radius:** **Global** — env loader, hooks, lint/test pre-commit; minimal runtime changes.  
-**🧭 Complexity (t-shirt):** **M**  
-**🔀 Parallelizable:** High (each guard rail is independent)  
-**RBAC:** N/A.
+## ✨ Nice-to-Have Epics (High Value, Not Blockers)
 
-- [ ] Strict `.env` validation (Zod) — fail fast at boot; separate server vs client exposure.
-  - _Why:_ Prevents misconfig in prod; safer secrets handling.
-  - _Replaces:_ Loose env checks.
-- [ ] Pre-commit hooks: ESLint, typecheck, test subset, secret-scan.
-  - _Why:_ Catches issues before they land.
-  - _Replaces:_ Post-commit fixups.
-- [ ] `.env.example` drift checker script to ensure parity with `env.ts`.
-  - _Why:_ Docs stay accurate; onboarding is smooth.
-  - _Replaces:_ Manually maintained example.
-- [ ] Harden seed/utility scripts (exit codes, clear logs).
-  - _Why:_ Predictable tooling behavior for CI/local.
-  - _Replaces:_ Best-effort scripting.
+### A Row-Level Security (DB Seatbelt, Behind a Flag)
+- [ ] `SET LOCAL app.tenant` per request/transaction.
+- [ ] RLS policies on tenant tables; app role **without** `BYPASSRLS`.
 
-**💰 Cost:** none.
+### B Idempotency & Concurrency
+- [ ] `Idempotency-Key` on create endpoints with response caching by key.
+- [ ] Optimistic concurrency (version/updatedAt) for admin edits.
+- [ ] Interactive transactions for multi-step invariants.
 
----
+### C Upload Pipeline Hardening
+- [ ] Magic-number MIME detection (reject spoofed content).
+- [ ] Image normalization with `sharp` (strip EXIF; size caps).
+- [ ] Block or sanitize SVG.
 
-### [P3] Epic: Upload Pipeline Hardening
-**Scope:** Make file uploads safe and consistent.  
-**📍 Blast radius:** **Targeted** — upload endpoints/components + small libs (magic sniff, sharp).  
-**🧭 Complexity (t-shirt):** **M**  
-**🔀 Parallelizable:** Medium (server pipeline + UI validations)  
-**RBAC:** Existing.
+### D Observability & Error Handling
+- [ ] Structured logging (`pino`) w/ redaction; include `requestId`, `tenantId`, latency.
+- [ ] Request-ID middleware; surface in responses and audit logs.
+- [ ] UI error boundaries + non-blocking toasts.
 
-- [ ] **Magic-number** detection; reject MIME spoofing.
-  - _Why:_ `Content-Type` can lie; blocks polyglot attacks.
-  - _Replaces:_ Trusting client MIME.
-- [ ] Size & dimension caps; normalize with `sharp` (strip EXIF, resize presets, recompress).
-  - _Why:_ Prevents oversized payloads/metadata leaks.
-  - _Replaces:_ Raw pass-through uploads.
-- [ ] Block SVG or sanitize before allowing.
-  - _Why:_ SVG can execute scripts; high XSS risk.
-  - _Replaces:_ Unsanitized SVGs.
-- [ ] Allow-list of extensions & MIME; tenant-scoped keys; never accept user-supplied paths.
-  - _Why:_ Prevents path traversal & arbitrary file types.
-  - _Replaces:_ Looser validation.
-- [ ] Presigned URLs w/ minimal privileges & short TTL; audit (`upload.create`, `upload.delete`).
-  - _Why:_ Limits exposure, improves traceability.
-  - _Replaces:_ Generic presign without least-privilege/TTL.
+### E Audit Log Integrity & Viewer
+- [ ] Hash-chained audit entries (prevHash/hash), include `requestId`, ip, ua.
+- [ ] Audit viewer with filters and export.
 
-**💰 Cost:** none.
+### F Performance & Scaling Hygiene
+- [ ] Indexes on common lookups: `(tenantId, slug)`, `(tenantId, createdAt)`, `(tenantId, name)`.
+- [ ] Prefer cursor pagination on large lists; avoid `COUNT(*)` where possible.
 
----
+### G API Contracts & Versioning
+- [ ] OpenAPI generation or tRPC.
+- [ ] Namespace `/api/v1/*`; deprecation policy.
 
-### [P3] Epic: Audit Log Integrity & Viewer
-**Scope:** Make audits tamper-evident and visible.  
-**📍 Blast radius:** **Moderate** — audit writes across mutations + a new UI page.  
-**🧭 Complexity (t-shirt):** **M**  
-**🔀 Parallelizable:** Medium (DB change first, UI next)  
-**RBAC:** Admin/Superadmin; Tenant OWNER/ADMIN as needed.
+### H Privacy & Data Lifecycle
+- [ ] PII inventory; stricter zod lengths/formats.
+- [ ] Optional field-level encryption (AES-GCM middleware).
+- [ ] Retention & purge jobs; export/download-my-data.
 
-- [ ] Extend `AuditLog` with `prevHash`, `hash` (sha256 chain), `requestId`, `ip`, `userAgent`.
-  - _Why:_ Tamper-evident chain; ties actions to requests and clients.
-  - _Replaces:_ Plain rows w/out integrity linkage.
-- [ ] Store **diffs** for updates (minimal JSON patch).
-  - _Why:_ Faster forensics; see exactly what changed.
-  - _Replaces:_ “Updated X” with no details.
-- [ ] Build **Audit UI** (filter by tenant, actor, action, date) + export to CSV/JSON.
-  - _Why:_ Practical visibility for operators.
-  - _Replaces:_ DB-only inspection.
-- [ ] Integrity checker script (verifies hash chain).
-  - _Why:_ Detects tampering or accidental edits.
-  - _Replaces:_ None.
+### I Feature Flags & Kill Switches
+- [ ] Minimal flag registry + types.
+- [ ] Kill switches for auth/uploads.
 
-**💰 Cost:** none.
+### J Session & Auth Hardening (Phase B)
+- [ ] Email verification; password reset with hashed single-use tokens (TTL).
+- [ ] Optional TOTP 2FA + backup codes.
+
+### K Test Suite (Unit + Security)
+- [ ] Unit: validators, guards, helpers.
+- [ ] Security tests: CSRF/Origin failures, rate limits, upload bounds.
+- [ ] Coverage thresholds per folder.
 
 ---
 
-### [P3] Epic: Performance & Scaling Hygiene
-**Scope:** Keep queries fast as data grows.  
-**📍 Blast radius:** **Targeted** — Prisma schema/migrations + select query call-sites; minimal UI impact.  
-**🧭 Complexity (t-shirt):** **M**  
-**🔀 Parallelizable:** High (per-model/index changes)  
-**RBAC:** N/A.
-
-- [ ] Add indexes: `(tenantId, slug)`, `(tenantId, createdAt)`, `(tenantId, name)` and FK lookups used by lists.
-  - _Why:_ Removes table scans and slow lookups.
-  - _Replaces:_ Minimal/implicit indexes only.
-- [ ] Switch large lists to **cursor pagination** (stable sort key).
-  - _Why:_ Better performance than offset at scale.
-  - _Replaces:_ Offset pagination everywhere.
-- [ ] Limit `COUNT(*)` usage; prefer `take + 1` with `hasMore`.
-  - _Why:_ Avoids expensive counts on big tables.
-  - _Replaces:_ Count-first pagination.
-
-**💰 Cost:** none.
+## Order of Operations (When You’re Ready)
+1. **Tenant Isolation (Strict in dev)** → fix offenders.
+2. **CSRF/Origin enforcement** → CORS/CSP tune.
+3. **Login rate limiting** → **Session & cookie hardening**.
+4. **S3 bucket policy** → remove public ACLs.
+5. **Operational limits & error envelope**.
+6. **Deps/config hygiene** (enable bots + CI audit).
+7. Then pick from Nice-to-Haves (RLS, observability, uploads, etc.).
 
 ---
 
-### [P4] Epic: API Contracts & Versioning
-**Scope:** Make APIs explicit and changeable safely.  
-**📍 Blast radius:** **Wide** — generate docs; minimal route renames if adopting `/api/v1/*`.  
-**🧭 Complexity (t-shirt):** **M**  
-**🔀 Parallelizable:** Medium (establish v1, then migrate modules)  
-**RBAC:** N/A.
-
-- [ ] Generate OpenAPI (or adopt tRPC for end-to-end typing).
-  - _Why:_ Consumers know the contract; easier testing/docs.
-  - _Replaces:_ Implicit route shapes.
-- [ ] Establish `/api/v1/*` namespace; deprecation policy.
-  - _Why:_ Enables breaking changes without breaking clients.
-  - _Replaces:_ Ungrouped routes.
-- [ ] Contract tests to prevent breaking changes.
-  - _Why:_ CI guardrail against accidental API drift.
-  - _Replaces:_ None.
-
-**💰 Cost:** none.
-
----
-
-### [P4] Epic: Privacy, PII & Data Lifecycle
-**Scope:** Respect user data and prepare for compliance.  
-**📍 Blast radius:** **Moderate** — schema changes for encryption/retention + selected handlers.  
-**🧭 Complexity (t-shirt):** **L**  
-**🔀 Parallelizable:** Medium (by data domain)  
-**RBAC:** Admin/system.
-
-- [ ] Map PII fields; stricter Zod schemas with length caps & formats.
-  - _Why:_ Avoid storing unnecessary/unsafe values.
-  - _Replaces:_ Generic string fields without caps.
-- [ ] Optional field-level encryption for sensitive columns (Prisma middleware + AES-GCM).
-  - _Why:_ Mitigates DB snapshot leaks/insider risk.
-  - _Replaces:_ Plaintext sensitive data.
-- [ ] Data retention config; purge expired artifacts/logs.
-  - _Why:_ Reduce blast radius; meet policies.
-  - _Replaces:_ Infinite retention.
-- [ ] “Right to erasure” helpers (soft-delete + PII scrubbing).
-  - _Why:_ Compliance readiness; user trust.
-  - _Replaces:_ Hard delete or nothing.
-- [ ] Download-my-data export (tenant-scoped JSON).
-  - _Why:_ Transparency & compliance.
-  - _Replaces:_ Manual DB pulls.
-
-**💰 Cost:** none.
-
----
-
-### [P4] Epic: Feature Flags & Kill Switches
-**Scope:** Ship risky features safely.  
-**📍 Blast radius:** **Targeted** — small registry + checks around new features.  
-**🧭 Complexity (t-shirt):** **S/M**  
-**🔀 Parallelizable:** High (wrap modules progressively)  
-**RBAC:** Admin/system.
-
-- [ ] Minimal flag registry + TypeScript types with per-tenant overrides.
-  - _Why:_ Gradual rollouts; quick revert if needed.
-  - _Replaces:_ Hardcoded booleans.
-- [ ] Gate new modules (e.g., branches/locations, storefront CMS).
-  - _Why:_ Isolate unstable features.
-  - _Replaces:_ Always-on modules.
-- [ ] Emergency kill switches for auth + uploads.
-  - _Why:_ Cut off compromised paths quickly.
-  - _Replaces:_ Code edits + redeploys.
-
-**💰 Cost:** none (self-hosted flags).
-
----
-
-### [P5] Epic: Accessibility & UX Hardening
-**Scope:** Avoid support issues and meet basic standards.  
-**📍 Blast radius:** **Moderate** — many form/table components; low back-end impact.  
-**🧭 Complexity (t-shirt):** **M**  
-**🔀 Parallelizable:** High (per-page/feature)  
-**RBAC:** N/A.
-
-- [ ] WCAG AA pass on forms (labels, aria, focus, keyboard traps).
-  - _Why:_ Accessibility + better keyboard UX for everyone.
-  - _Replaces:_ Inconsistent semantics.
-- [ ] Consistent empty/error/loading states across tables & forms.
-  - _Why:_ Predictable UI, lower churn.
-  - _Replaces:_ Ad-hoc placeholders.
-- [ ] Sticky save bar for long forms; dirty-form guard modal (continue/discard/save-and-leave).
-  - _Why:_ Prevent data loss; faster editing.
-  - _Replaces:_ Non-sticky actions, accidental navigations.
-- [ ] Toasts everywhere; remove `alert()` usage entirely.
-  - _Why:_ Non-blocking, consistent notifications.
-  - _Replaces:_ Alerts (jarring, blocking).
-
-**💰 Cost:** none.
-
----
-
-## Definition of Done — “Production Ready” (Repo)
-- [ ] All **P1** epics complete: CSRF/CORS/Headers, Tenant Isolation Enforcement, Observability & Error Handling, Test Suite, Idempotency & Transactions.  
-  - _Why:_ Highest-leverage, **global** or near-global improvements with no ongoing cost.
-- [ ] **P2** epics: Session/Auth (Phase A), Rate Limiting, DevX/Config Safety.  
-  - _Why:_ Tightens auth posture and keeps quality high with minimal cost.
-- [ ] **P3** epics: Upload Hardening, Audit Integrity & Viewer, Performance indexes & cursor pagination.  
-  - _Why:_ Targeted security + scalability.
-- [ ] **P4–P5** epics: API Contracts/Versioning, Privacy/PII, Feature Flags, Accessibility.  
-  - _Why:_ Productization and compliance readiness.
+## Definition of “Production Ready” (for this project)
+- All **Must-Have** epics marked **done** above.
+- Manual QA passes with strict tenant enforcement **enabled** locally.
+- No high/critical `audit` findings on production dependencies.
+- HTTPS hosting ready; **HSTS** enabled on live domains.
 
 > Notes: All items above are repo-only; ops/deploy/WAF/CDN/DB PITR are intentionally out of scope here. Ordering prioritizes **no-cost**, **global-impact early**, and **security importance**.
 
@@ -1275,7 +1062,7 @@ Below are estimated monthly costs at different scales. These are **not actual bi
 - **Membership**: links a `User` to a `Tenant` with a role.
 - **Role**: a set of permissions inside a tenant (`OWNER`, etc., or custom).
 - **Permission**: fine‑grained capability (e.g., `product.write`).
-- **System Role**: global role across all tenants (`SUPERADMIN`, `ADMIN`, `USER`).
+- **System Role**: global role across all tenants (`SUPERUSER`, `USER`).
 
 ---
 

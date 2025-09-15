@@ -3,7 +3,8 @@ import "server-only";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth";
-import { db } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
+import { prismaForTenant } from "@/lib/db/tenant-extends";
 
 const TENANT_COOKIE = "x-current-tenant-id";
 
@@ -20,24 +21,27 @@ export async function getCurrentTenantId(): Promise<string | null> {
   const userId = session?.user?.id ?? null;
   const isSuper = (session?.user as any)?.role === "SUPERUSER";
   const cookieStore = await cookies();
+
   // 1) cookie
   const cookieTenantId = cookieStore.get(TENANT_COOKIE)?.value ?? null;
   if (cookieTenantId) {
     if (isSuper) {
-      const exists = await db.tenant.findUnique({ where: { id: cookieTenantId }, select: { id: true } });
+      const exists = await __rawDb.tenant.findUnique({ where: { id: cookieTenantId }, select: { id: true } });
       if (exists) return cookieTenantId;
     } else if (userId) {
-      const hasMembership = await db.membership.findFirst({
-        where: { userId, tenantId: cookieTenantId },
+      // 🔑 Validate membership via a TENANT-SCOPED client for that cookie tenant
+      const tdb = prismaForTenant(__rawDb, cookieTenantId);
+      const hasMembership = await tdb.membership.findFirst({
+        where: { userId },
         select: { id: true },
       });
       if (hasMembership) return cookieTenantId;
     }
   }
 
-  // 2) first membership
+  // 2) first membership (system-wide; no tenant context yet)
   if (userId) {
-    const m = await db.membership.findFirst({
+    const m = await __rawDb.membership.findFirst({
       where: { userId },
       orderBy: { createdAt: "asc" },
       select: { tenantId: true },
@@ -47,7 +51,7 @@ export async function getCurrentTenantId(): Promise<string | null> {
 
   // 3) superuser fallback: first tenant in system
   if (isSuper) {
-    const t = await db.tenant.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } });
+    const t = await __rawDb.tenant.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } });
     if (t?.id) return t.id;
   }
 

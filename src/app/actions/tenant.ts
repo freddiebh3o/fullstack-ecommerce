@@ -5,7 +5,8 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/nextauth";
-import { db } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
+import { prismaForTenant } from "@/lib/db/tenant-extends";
 
 // 🔧 Use the same cookie name the resolver expects
 const TENANT_COOKIE = "x-current-tenant-id";
@@ -34,13 +35,15 @@ export async function setCurrentTenant(tenantId: string) {
 
   const isSuper = (session.user as any)?.role === "SUPERUSER";
   if (!isSuper) {
-    const hasMembership = await db.membership.findFirst({
-      where: { userId: session.user.id, tenantId },
+    // check membership via TENANT client for the *target* tenant
+    const tdb = prismaForTenant(__rawDb, tenantId);
+    const hasMembership = await tdb.membership.findFirst({
+      where: { userId: session.user.id },
       select: { id: true },
     });
     if (!hasMembership) throw new Error("FORBIDDEN");
   } else {
-    const exists = await db.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
+    const exists = await __rawDb.tenant.findUnique({ where: { id: tenantId }, select: { id: true } });
     if (!exists) throw new Error("NOT_FOUND");
   }
 

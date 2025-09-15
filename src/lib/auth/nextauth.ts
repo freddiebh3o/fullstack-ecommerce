@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import type { User } from "next-auth";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db/prisma";
+import { __rawDb } from "@/lib/db/prisma";
 import { ENV } from "@/lib/utils/env";
 
 export const authOptions: NextAuthOptions = {
@@ -38,14 +39,14 @@ export const authOptions: NextAuthOptions = {
   
       // set currentTenantId once (first membership or the "default" tenant)
       if (!token.currentTenantId && token.sub) {
-        const membership = await db.membership.findFirst({
+        const membership = await __rawDb.membership.findFirst({
           where: { userId: token.sub },
           select: { tenantId: true },
           orderBy: { createdAt: "asc" },
         });
         token.currentTenantId =
           membership?.tenantId ||
-          (await db.tenant.findFirst({ where: { slug: "default" }, select: { id: true } }))?.id;
+          (await __rawDb.tenant.findFirst({ where: { slug: "default" }, select: { id: true } }))?.id;
       }
       return token;
     },
